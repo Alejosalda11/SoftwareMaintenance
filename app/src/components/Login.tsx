@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { getUsers, setCurrentUser } from '@/data/store';
+import { getUsers, setCurrentUser, initializeData } from '@/data/store';
 import { isSupabaseAuth, signInWithSupabaseAndError, authenticateUser, createSession } from '@/lib/auth';
 import { useSupabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -64,6 +64,7 @@ export function Login({ onLoginSuccess, onAdminSettings }: LoginProps) {
           return;
         }
         setCurrentUser(user!);
+        await initializeData();
         toast.success(`Welcome back, ${user!.name}!`);
         onLoginSuccess();
         return;

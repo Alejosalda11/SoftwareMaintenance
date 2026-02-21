@@ -41,8 +41,11 @@ function App() {
         const uid = getSupabaseUserId();
         if (uid) {
           const profile = await fetchProfileAsUser(uid);
-          if (profile) setCurrentUser(profile);
-          savedUser = profile ?? null;
+          if (profile) {
+            setCurrentUser(profile);
+            savedUser = profile;
+            await initializeData();
+          }
         }
       }
       const savedHotel = getCurrentHotel();
