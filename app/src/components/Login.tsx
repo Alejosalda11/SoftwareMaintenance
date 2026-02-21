@@ -134,15 +134,6 @@ export function Login({ onLoginSuccess, onAdminSettings }: LoginProps) {
               </Button>
             </form>
 
-            {/* Demo Credentials */}
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-xs font-semibold text-blue-900 mb-2">Default credentials (change in Admin):</p>
-              <div className="text-xs text-blue-700 space-y-1">
-                <p>Email: alejandro@hotel.com</p>
-                <p>Password: admin123</p>
-              </div>
-            </div>
-
             {onAdminSettings && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <Button
