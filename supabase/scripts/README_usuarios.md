@@ -1,5 +1,20 @@
 # Usuarios en Supabase
 
+## Crear los 3 usuarios de una vez (recomendado para Vercel)
+
+En **SQL Editor** de tu proyecto Supabase ejecuta el archivo `create_tres_usuarios_auth.sql`.
+
+- Crea en **auth** a: **Alejandro** (superadmin), **Steven** (admin), **Camilo** (admin).
+- Contraseña para los tres: **admin123**.
+- El trigger del proyecto crea automáticamente las filas en `profiles`. Tras ejecutar el script puedes hacer login en la app (local o Vercel) con:
+  - `alejandro@hotel.com` / `admin123`
+  - `steven@hotel.com` / `admin123`
+  - `camilo@hotel.com` / `admin123`
+
+Si vuelves a ejecutar el script, primero borra los usuarios existentes con esos emails (o el propio script los elimina y los vuelve a crear).
+
+---
+
 ## Borrar todos los usuarios
 
 En **SQL Editor** ejecuta el contenido de `delete_all_auth_users.sql`:

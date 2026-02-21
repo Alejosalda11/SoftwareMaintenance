@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { getUsers, setCurrentUser } from '@/data/store';
 import { isSupabaseAuth, signInWithSupabaseAndError, authenticateUser, createSession } from '@/lib/auth';
+import { useSupabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 interface LoginProps {
@@ -16,6 +17,7 @@ interface LoginProps {
 }
 
 export function Login({ onLoginSuccess, onAdminSettings }: LoginProps) {
+  const supabaseOk = useSupabase();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -41,12 +43,16 @@ export function Login({ onLoginSuccess, onAdminSettings }: LoginProps) {
         const { user, error: signInError } = await signInWithSupabaseAndError(trimmedEmail, trimmedPassword);
         if (signInError) {
           const msg = signInError.message || 'Invalid email or password';
-          let displayMsg = msg === 'Invalid login credentials' ? 'Correo o contraseña incorrectos' : msg;
-          if (msg.toLowerCase().includes('confirm')) {
-            displayMsg = 'Correo sin confirmar. En Supabase ve a Authentication > Providers > Email y desactiva "Confirm email" para que los usuarios puedan entrar sin confirmar.';
+          const lower = msg.toLowerCase();
+          let displayMsg = (msg === 'Invalid login credentials' || lower.includes('invalid') && (lower.includes('credential') || lower.includes('login'))) ? 'Correo o contraseña incorrectos. Si el usuario se creó antes, restablece la contraseña en Supabase (Authentication > Users > ... > Update user).' : msg;
+          if (lower.includes('confirm')) {
+            displayMsg = 'Correo sin confirmar. En Supabase ve a Authentication > Providers > Email y desactiva "Confirm email".';
           }
-          if (signInError.status === 422 || (msg.toLowerCase().includes('password') && msg.toLowerCase().includes('6'))) {
-            displayMsg = 'Revisa el correo y la contraseña. La contraseña debe tener al menos 6 caracteres.';
+          if ((lower.includes('at least 6') || lower.includes('minimum 6') || lower.includes('6 character')) && lower.includes('password')) {
+            displayMsg = 'La contraseña debe tener al menos 6 caracteres.';
+          }
+          if (signInError.status === 422 && displayMsg === msg && !lower.includes('6')) {
+            displayMsg = 'Correo o contraseña incorrectos. Restablece la contraseña en Supabase (Authentication > Users).';
           }
           setError(displayMsg);
           setIsLoading(false);
@@ -176,6 +182,14 @@ export function Login({ onLoginSuccess, onAdminSettings }: LoginProps) {
         {/* Footer */}
         <p className="text-center text-xs text-gray-500">
           Hotel Maintenance Management System
+        </p>
+        {/* Debug: shows if Supabase env vars are in the build (Vercel) */}
+        <p className="text-center text-xs mt-1" title={supabaseOk ? 'VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY están en el build' : 'Faltan en Vercel Environment Variables o hay que redeploy'}>
+          {supabaseOk ? (
+            <span className="text-green-600">Supabase: conectado</span>
+          ) : (
+            <span className="text-amber-600">Supabase: no configurado (Vercel → Settings → Environment Variables → redeploy)</span>
+          )}
         </p>
       </div>
     </div>
