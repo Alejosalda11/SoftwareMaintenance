@@ -17,7 +17,6 @@ export function SingleImageUpload({
   value,
   onChange,
   label = 'Image',
-  placeholder = 'Upload image',
   aspectRatio = 'square',
   className = '',
 }: SingleImageUploadProps) {

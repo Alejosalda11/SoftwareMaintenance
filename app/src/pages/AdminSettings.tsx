@@ -100,8 +100,8 @@ export function AdminSettings({ onBack }: AdminSettingsProps) {
         email: user.email || '',
         password: '',
         color: user.color,
-        avatarImage: isImg ? user.avatar : '',
-        avatarInitials: isImg ? '' : (user.avatar || '')
+        avatarImage: isImg ? user.avatar ?? '' : '',
+        avatarInitials: isImg ? '' : (user.avatar ?? '')
       });
     } else {
       setEditingUser(null);
