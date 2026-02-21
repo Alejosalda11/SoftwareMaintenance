@@ -72,10 +72,6 @@ function App() {
     setAppState('main');
   };
 
-  const handleBackToUser = () => {
-    setAppState('user-selection');
-  };
-
   const handleSwitchHotel = () => {
     setAppState('hotel-selection');
   };
@@ -90,10 +86,8 @@ function App() {
   };
 
   const handleLoginSuccess = () => {
-    // After login, check if user and hotel are already selected
     const savedUser = getCurrentUser();
     const savedHotel = getCurrentHotel();
-    
     if (savedUser && savedHotel) {
       setAppState('main');
     } else if (savedUser) {
@@ -121,8 +115,8 @@ function App() {
       case 'hotel-selection':
         return (
           <HotelSelection 
-            onHotelSelected={handleHotelSelected} 
-            onBackToUser={handleBackToUser}
+            onHotelSelected={handleHotelSelected}
+            onLogout={() => setAppState('login')}
           />
         );
       

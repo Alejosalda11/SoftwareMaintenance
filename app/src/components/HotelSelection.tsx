@@ -1,7 +1,7 @@
 // Hotel Maintenance Pro - Hotel Selection Screen
 
 import { useEffect, useState } from 'react';
-import { MapPin, ArrowLeft, LogOut, Hotel as HotelIcon } from 'lucide-react';
+import { MapPin, LogOut, Hotel as HotelIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,10 +10,10 @@ import type { Hotel } from '@/types';
 
 interface HotelSelectionProps {
   onHotelSelected: () => void;
-  onBackToUser: () => void;
+  onLogout: () => void;
 }
 
-export function HotelSelection({ onHotelSelected, onBackToUser }: HotelSelectionProps) {
+export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProps) {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [currentUser, setCurrentUser] = useState<string>('');
   const [userRole, setUserRole] = useState<string>('');
@@ -36,7 +36,7 @@ export function HotelSelection({ onHotelSelected, onBackToUser }: HotelSelection
 
   const handleLogout = () => {
     logout();
-    onBackToUser();
+    onLogout();
   };
 
   const getRoleBadge = () => {
@@ -63,12 +63,8 @@ export function HotelSelection({ onHotelSelected, onBackToUser }: HotelSelection
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center justify-center p-4">
-      {/* Header */}
-      <div className="w-full max-w-md mb-6 flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={onBackToUser}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
-        </Button>
+      {/* Header: solo Logout (no se puede volver a cambiar de usuario) */}
+      <div className="w-full max-w-md mb-6 flex justify-end">
         <Button variant="ghost" size="sm" onClick={handleLogout}>
           <LogOut className="w-4 h-4 mr-2" />
           Logout
