@@ -25,10 +25,10 @@ export async function signInWithSupabase(email: string, password: string): Promi
 export async function signInWithSupabaseAndError(
   email: string,
   password: string
-): Promise<{ user: User | null; error: { message: string } | null }> {
+): Promise<{ user: User | null; error: { message: string; status?: number } | null }> {
   if (!supabase) return { user: null, error: { message: 'Supabase not configured' } };
   const { data: { user }, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { user: null, error: { message: error.message } };
+  if (error) return { user: null, error: { message: error.message, status: (error as { status?: number }).status } };
   if (!user) return { user: null, error: { message: 'Invalid login credentials' } };
   sessionCache = { userId: user.id };
   const profile = await fetchProfileAsUser(user.id);

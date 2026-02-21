@@ -25,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getUsers, getHotels, addUser, updateUser, deleteUser, addHotel, updateHotel, deleteHotel, getCurrentUser, canDeleteUser, canManageUsers } from '@/data/store';
-import { hashPassword } from '@/lib/auth';
+import { hashPassword, isSupabaseAuth } from '@/lib/auth';
 import type { User, Hotel, UserRole } from '@/types';
 import { toast } from 'sonner';
 import { SingleImageUpload } from '@/components/SingleImageUpload';
@@ -128,10 +128,14 @@ export function AdminSettings({ onBack }: AdminSettingsProps) {
       toast.error('Password is required for new users');
       return;
     }
+    if (!editingUser && isSupabaseAuth() && userForm.password.trim().length < 6) {
+      toast.error('With Supabase, password must be at least 6 characters');
+      return;
+    }
 
     const avatar = userForm.avatarImage || userForm.avatarInitials || userForm.name.split(' ').map((n: string) => n[0]).join('').toUpperCase();
 
-    const userData: Partial<User> & { name: string; role: UserRole; phone: string; email?: string; color: string; avatar?: string } = {
+    const userData: Partial<User> & { name: string; role: UserRole; phone: string; email?: string; color: string; avatar?: string; password?: string } = {
       name: userForm.name,
       role: userForm.role,
       phone: userForm.phone,
@@ -143,7 +147,7 @@ export function AdminSettings({ onBack }: AdminSettingsProps) {
       userData.password = hashPassword(userForm.password);
     }
     if (!editingUser) {
-      userData.password = hashPassword(userForm.password);
+      userData.password = isSupabaseAuth() ? userForm.password.trim() : hashPassword(userForm.password);
     }
 
     if (editingUser) {
@@ -152,6 +156,9 @@ export function AdminSettings({ onBack }: AdminSettingsProps) {
     } else {
       addUser(userData as Omit<User, 'id'>);
       toast.success('User created successfully!');
+      if (isSupabaseAuth()) {
+        toast.info('Si no puede iniciar sesión, en Supabase desactiva "Confirm email" en Authentication > Providers > Email.', { duration: 6000 });
+      }
     }
 
     setIsUserDialogOpen(false);

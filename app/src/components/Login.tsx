@@ -24,14 +24,31 @@ export function Login({ onLoginSuccess, onAdminSettings }: LoginProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    if (!trimmedEmail || !trimmedPassword) {
+      setError('Ingresa correo y contraseña.');
+      return;
+    }
+    if (isSupabaseAuth() && trimmedPassword.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
     setIsLoading(true);
 
     try {
       if (isSupabaseAuth()) {
-        const { user, error: signInError } = await signInWithSupabaseAndError(email, password);
+        const { user, error: signInError } = await signInWithSupabaseAndError(trimmedEmail, trimmedPassword);
         if (signInError) {
           const msg = signInError.message || 'Invalid email or password';
-          setError(msg === 'Invalid login credentials' ? 'Correo o contraseña incorrectos' : msg);
+          let displayMsg = msg === 'Invalid login credentials' ? 'Correo o contraseña incorrectos' : msg;
+          if (msg.toLowerCase().includes('confirm')) {
+            displayMsg = 'Correo sin confirmar. En Supabase ve a Authentication > Providers > Email y desactiva "Confirm email" para que los usuarios puedan entrar sin confirmar.';
+          }
+          if (signInError.status === 422 || (msg.toLowerCase().includes('password') && msg.toLowerCase().includes('6'))) {
+            displayMsg = 'Revisa el correo y la contraseña. La contraseña debe tener al menos 6 caracteres.';
+          }
+          setError(displayMsg);
           setIsLoading(false);
           return;
         }
