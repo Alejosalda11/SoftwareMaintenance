@@ -8,20 +8,28 @@ Create a project at [Supabase](https://supabase.com). In **Settings > API** copy
 
 In the Supabase dashboard open **SQL Editor** and run the contents of `migrations/20250221000001_schema.sql`. This creates tables (hotels, profiles, hotel_access, damages, rooms, preventive_maintenance) and RLS policies.
 
-## 3. Create the first user
+## 3. Allow users to sign in without confirming email (recomendado para desarrollo)
+
+Si no puedes entrar después de crear un usuario, suele ser porque Supabase exige "Confirm email".
+
+- Ve a **Authentication > Providers > Email**.
+- Desactiva **"Confirm email"** (o en **Authentication > Users**, al añadir usuario, marca **"Auto Confirm User"** si aparece).
+
+Así los usuarios pueden iniciar sesión en cuanto los creas.
+
+## 4. Create the first user
 
 - Go to **Authentication > Users** and click **Add user**.
 - Email: e.g. `alejandro@hotel.com`
 - Password: e.g. `admin123`
-- Under **User Metadata** add: `{"name":"Alejandro Saldarriaga","role":"superadmin","phone":"555-0101","color":"#dc2626","avatar":"AS","can_delete":true}` (optional; the trigger will create a profile with defaults from metadata).
+- If available, check **Auto Confirm User** so they can log in immediately.
+- Under **User Metadata** (optional) add: `{"name":"Alejandro Saldarriaga","role":"superadmin","phone":"555-0101","color":"#dc2626","avatar":"AS","can_delete":true}`. The trigger will create a row in `profiles`; you can edit it later in **Table Editor > profiles**.
 
-After the user is created, a row in `profiles` is created by the trigger. You can edit the profile in **Table Editor > profiles** (name, role, avatar image URL, etc.).
-
-## 4. Add hotels
+## 5. Add hotels
 
 In **Table Editor > hotels** add rows (or use the app after login: Admin Settings > Hotels). Columns: name, address, total_rooms, color, image (optional logo URL or base64).
 
-## 5. App env
+## 6. App env
 
 In the app folder create `.env`:
 

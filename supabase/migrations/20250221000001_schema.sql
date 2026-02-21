@@ -238,15 +238,16 @@ CREATE POLICY "Users can delete preventive for accessible hotels"
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, name, role, email, color, avatar, can_delete)
+  INSERT INTO public.profiles (id, name, role, phone, email, color, avatar, can_delete)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
     COALESCE(NEW.raw_user_meta_data->>'role', 'handyman'),
+    COALESCE(NEW.raw_user_meta_data->>'phone', ''),
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'color', '#3b82f6'),
     NEW.raw_user_meta_data->>'avatar',
-    (NEW.raw_user_meta_data->>'can_delete')::boolean = true
+    COALESCE((NEW.raw_user_meta_data->>'can_delete')::boolean, false)
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;

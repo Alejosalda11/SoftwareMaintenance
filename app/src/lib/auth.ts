@@ -17,12 +17,23 @@ supabase?.auth.onAuthStateChange((_event, session) => {
 });
 
 export async function signInWithSupabase(email: string, password: string): Promise<User | null> {
-  if (!supabase) return null;
+  const result = await signInWithSupabaseAndError(email, password);
+  return result.error ? null : result.user ?? null;
+}
+
+/** Same as signInWithSupabase but returns the error so the UI can show it (e.g. "Email not confirmed"). */
+export async function signInWithSupabaseAndError(
+  email: string,
+  password: string
+): Promise<{ user: User | null; error: { message: string } | null }> {
+  if (!supabase) return { user: null, error: { message: 'Supabase not configured' } };
   const { data: { user }, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error || !user) return null;
+  if (error) return { user: null, error: { message: error.message } };
+  if (!user) return { user: null, error: { message: 'Invalid login credentials' } };
   sessionCache = { userId: user.id };
   const profile = await fetchProfileAsUser(user.id);
-  return profile;
+  if (!profile) return { user: null, error: { message: 'No profile found for this user. Check that the profiles table has a row with this user id.' } };
+  return { user: profile, error: null };
 }
 
 export async function fetchProfileAsUser(userId: string): Promise<User | null> {

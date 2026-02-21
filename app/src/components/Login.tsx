@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { getUsers, setCurrentUser } from '@/data/store';
-import { isSupabaseAuth, signInWithSupabase, authenticateUser, createSession } from '@/lib/auth';
+import { isSupabaseAuth, signInWithSupabaseAndError, authenticateUser, createSession } from '@/lib/auth';
 import { toast } from 'sonner';
 
 interface LoginProps {
@@ -28,14 +28,20 @@ export function Login({ onLoginSuccess, onAdminSettings }: LoginProps) {
 
     try {
       if (isSupabaseAuth()) {
-        const user = await signInWithSupabase(email, password);
-        if (!user) {
-          setError('Invalid email or password');
+        const { user, error: signInError } = await signInWithSupabaseAndError(email, password);
+        if (signInError) {
+          const msg = signInError.message || 'Invalid email or password';
+          setError(msg === 'Invalid login credentials' ? 'Correo o contraseña incorrectos' : msg);
           setIsLoading(false);
           return;
         }
-        setCurrentUser(user);
-        toast.success(`Welcome back, ${user.name}!`);
+        if (!user) {
+          setError('Usuario sin perfil. Crea el usuario en Supabase (Authentication) y revisa que exista una fila en la tabla profiles.');
+          setIsLoading(false);
+          return;
+        }
+        setCurrentUser(user!);
+        toast.success(`Welcome back, ${user!.name}!`);
         onLoginSuccess();
         return;
       }
