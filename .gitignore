@@ -1,0 +1,17 @@
+# Env (credenciales)
+.env
+.env.example
+.env.local
+.env.*.local
+
+# Dependencies
+app/node_modules/
+
+# Build
+app/dist/
+
+# OS / editor
+.DS_Store
+*.log
+
+
