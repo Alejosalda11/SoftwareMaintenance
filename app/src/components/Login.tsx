@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { getUsers, setCurrentUser, initializeData } from '@/data/store';
 import { isSupabaseAuth, signInWithSupabaseAndError, authenticateUser, createSession } from '@/lib/auth';
 import { useSupabase } from '@/lib/supabase';
-import { toast } from 'sonner';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -65,7 +64,6 @@ export function Login({ onLoginSuccess, onAdminSettings }: LoginProps) {
         }
         setCurrentUser(user!);
         await initializeData();
-        toast.success(`Welcome back, ${user!.name}!`);
         onLoginSuccess();
         return;
       }
@@ -79,7 +77,6 @@ export function Login({ onLoginSuccess, onAdminSettings }: LoginProps) {
       }
       createSession(user.id);
       setCurrentUser(user);
-      toast.success(`Welcome back, ${user.name}!`);
       onLoginSuccess();
     } catch (err) {
       setError('An error occurred during login');

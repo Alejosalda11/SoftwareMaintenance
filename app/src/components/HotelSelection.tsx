@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getHotels, setCurrentHotel, getCurrentUser, logout } from '@/data/store';
 import type { Hotel } from '@/types';
-import { toast } from 'sonner';
 
 interface HotelSelectionProps {
   onHotelSelected: () => void;
@@ -32,13 +31,11 @@ export function HotelSelection({ onHotelSelected, onBackToUser }: HotelSelection
 
   const handleSelectHotel = async (hotel: Hotel) => {
     await setCurrentHotel(hotel);
-    toast.success(`Working at ${hotel.name} today!`);
     onHotelSelected();
   };
 
   const handleLogout = () => {
     logout();
-    toast.info('Logged out successfully');
     onBackToUser();
   };
 

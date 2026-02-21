@@ -6,7 +6,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getUsers, getCurrentUser, setCurrentUser, canManageUsers } from '@/data/store';
 import type { User } from '@/types';
-import { toast } from 'sonner';
 
 interface UserSelectionProps {
   onUserSelected: () => void;
@@ -34,7 +33,6 @@ export function UserSelection({ onUserSelected, onAdminSettings }: UserSelection
     setSelectedUser(user);
     setCurrentUser(user);
     setShowAdminButton(canManageUsers(user));
-    toast.success(`Welcome, ${user.name}!`);
   };
 
   const handleContinue = () => {

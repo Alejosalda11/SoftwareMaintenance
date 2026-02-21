@@ -1,7 +1,7 @@
 // Hotel Maintenance Pro - Main App Component
 
 import { useState, useEffect } from 'react';
-import { initializeData, getCurrentUser, setCurrentUser, getCurrentHotel, subscribe } from '@/data/store';
+import { initializeData, getCurrentUser, setCurrentUser, getCurrentHotel, subscribe, logout } from '@/data/store';
 import { UserSelection } from '@/components/UserSelection';
 import { Login } from '@/components/Login';
 import { HotelSelection } from '@/components/HotelSelection';
@@ -85,6 +85,7 @@ function App() {
   };
 
   const handleBackFromAdmin = () => {
+    logout();
     setAppState('login');
   };
 
@@ -106,10 +107,7 @@ function App() {
     switch (appState) {
       case 'login':
         return (
-          <Login 
-            onLoginSuccess={handleLoginSuccess}
-            onAdminSettings={handleAdminSettings}
-          />
+          <Login onLoginSuccess={handleLoginSuccess} />
         );
       
       case 'user-selection':
