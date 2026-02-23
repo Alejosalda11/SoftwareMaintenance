@@ -121,7 +121,7 @@ export function DamageTracker() {
       notes: formData.notes,
       reportedBy: currentUser?.name || 'Handyman',
       assignedTo: formData.assignedTo || currentUser?.name || undefined,
-      images: images.length > 0 ? images : [],
+      images: images.length > 0 ? images.map(img => ({ type: img.type, url: img.url, uploadedAt: img.uploadedAt })) : [],
       completedDate: formData.status === 'completed' ? new Date().toISOString().split('T')[0] : undefined
     };
 

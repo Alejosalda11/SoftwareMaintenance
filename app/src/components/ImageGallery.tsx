@@ -16,7 +16,7 @@ export function ImageGallery({ images, damageId: _damageId }: ImageGalleryProps)
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
-  // Normalize images to RepairImage format
+  // Normalize images to RepairImage format (ensure type is preserved for before/after)
   const normalizedImages: RepairImage[] = images.length > 0
     ? (typeof images[0] === 'string'
         ? (images as string[]).map(url => ({
@@ -24,7 +24,11 @@ export function ImageGallery({ images, damageId: _damageId }: ImageGalleryProps)
             url,
             uploadedAt: new Date().toISOString()
           }))
-        : (images as RepairImage[]))
+        : (images as RepairImage[]).map((img) => ({
+            type: img.type === 'after' ? ('after' as const) : ('before' as const),
+            url: img.url,
+            uploadedAt: img.uploadedAt ?? new Date().toISOString()
+          })))
     : [];
 
   if (normalizedImages.length === 0) {

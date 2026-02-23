@@ -44,7 +44,17 @@ function rowToDamage(r: Record<string, unknown>): Damage {
     notes: (r.notes as string) ?? '',
     reportedBy: r.reported_by as string,
     assignedTo: (r.assigned_to as string) || undefined,
-    images: Array.isArray(r.images) ? (r.images as Damage['images']) : [],
+    images: Array.isArray(r.images)
+      ? (r.images as unknown[]).map((img) => {
+          if (typeof img === 'string') return { type: 'before' as const, url: img, uploadedAt: new Date().toISOString() };
+          const o = img as Record<string, unknown>;
+          return {
+            type: (o.type === 'after' ? 'after' : 'before') as 'before' | 'after',
+            url: (o.url as string) ?? '',
+            uploadedAt: (o.uploadedAt as string) ?? new Date().toISOString()
+          };
+        })
+      : [],
     lastEditedAt: (r.last_edited_at as string) || undefined,
   };
 }
