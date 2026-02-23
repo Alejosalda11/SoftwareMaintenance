@@ -1,6 +1,6 @@
 // Hotel Maintenance Pro - Reports Page (Hotel-specific)
 
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, useEffect } from 'react';
 import { 
   PieChart, 
   TrendingUp, 
@@ -34,7 +34,8 @@ import {
   LineChart,
   Line
 } from 'recharts';
-import { generatePDFReport } from '@/lib/pdfGenerator';
+import { generatePDFReport, type ChartImageOption } from '@/lib/pdfGenerator';
+import html2canvas from 'html2canvas';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316', '#6b7280'];
 
@@ -89,6 +90,11 @@ export function Reports() {
     averageRepairCost: 0
   };
   const reportRef = useRef<HTMLDivElement>(null);
+  const chart1Ref = useRef<HTMLDivElement>(null);
+  const chart2Ref = useRef<HTMLDivElement>(null);
+  const chart3Ref = useRef<HTMLDivElement>(null);
+  const chart4Ref = useRef<HTMLDivElement>(null);
+  const [capturingCharts, setCapturingCharts] = useState(false);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -103,21 +109,48 @@ export function Reports() {
       toast.error('Please select start and end dates for custom range');
       return;
     }
-    
-    try {
-      await generatePDFReport({
-        hotel,
-        damages,
-        categoryStats,
-        maintenanceStats,
-        dateRange: dateRange ?? undefined
-      });
-      toast.success('PDF report generated successfully!');
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF report');
-    }
+    setCapturingCharts(true);
   };
+
+  useEffect(() => {
+    if (!capturingCharts || !hotel) return;
+    const run = async () => {
+      await new Promise(r => setTimeout(r, 400));
+      const chartImages: ChartImageOption[] = [];
+      const refs = [
+        { ref: chart1Ref, title: 'Expenses by Category' },
+        { ref: chart2Ref, title: 'Repairs by Category' },
+        { ref: chart3Ref, title: 'Monthly Trends' },
+        { ref: chart4Ref, title: 'Status & Priority' },
+      ];
+      for (const { ref, title } of refs) {
+        if (ref.current) {
+          try {
+            const canvas = await html2canvas(ref.current, { scale: 2, useCORS: true });
+            chartImages.push({ title, dataUrl: canvas.toDataURL('image/png') });
+          } catch (e) {
+            console.warn('Chart capture failed:', title, e);
+          }
+        }
+      }
+      setCapturingCharts(false);
+      try {
+        await generatePDFReport({
+          hotel,
+          damages,
+          categoryStats,
+          maintenanceStats,
+          dateRange: dateRange ?? undefined,
+          chartImages: chartImages.length > 0 ? chartImages : undefined
+        });
+        toast.success('PDF report generated successfully!');
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+        toast.error('Failed to generate PDF report');
+      }
+    };
+    run();
+  }, [capturingCharts]);
 
   // Prepare data for charts
   const categoryData = categoryStats.map(stat => ({
@@ -478,6 +511,70 @@ export function Reports() {
           </tbody>
         </table>
       </div>
+
+      {/* Off-screen chart capture for PDF export */}
+      {capturingCharts && (
+        <div
+          aria-hidden
+          className="fixed left-[-9999px] top-0 w-[400px] bg-white"
+          style={{ zIndex: -1 }}
+        >
+          <div ref={chart1Ref} className="w-[400px] h-[300px]">
+            <ResponsiveContainer width={400} height={300}>
+              <BarChart data={categoryData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis tickFormatter={(v) => `$${v}`} />
+                <Bar dataKey="cost" fill={hotel.color} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div ref={chart2Ref} className="w-[400px] h-[300px]">
+            <ResponsiveContainer width={400} height={300}>
+              <RePieChart>
+                <Pie data={categoryData} cx="50%" cy="50%" dataKey="count" outerRadius={80}>
+                  {categoryData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Pie>
+                <Legend />
+              </RePieChart>
+            </ResponsiveContainer>
+          </div>
+          <div ref={chart3Ref} className="w-[400px] h-[300px]">
+            <ResponsiveContainer width={400} height={300}>
+              <LineChart data={monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis yAxisId="left" />
+                <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `$${v}`} />
+                <Line yAxisId="left" type="monotone" dataKey="repairs" stroke="#3b82f6" name="Repairs" strokeWidth={2} />
+                <Line yAxisId="right" type="monotone" dataKey="expenses" stroke="#10b981" name="Expenses" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div ref={chart4Ref} className="w-[400px] h-[300px] flex gap-2">
+            <div className="w-[190px] h-[300px]">
+              <ResponsiveContainer width={190} height={300}>
+                <RePieChart>
+                  <Pie data={statusData} cx="50%" cy="50%" dataKey="value" innerRadius={50} outerRadius={70}>
+                    {statusData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Legend />
+                </RePieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="w-[190px] h-[300px]">
+              <ResponsiveContainer width={190} height={300}>
+                <RePieChart>
+                  <Pie data={priorityData} cx="50%" cy="50%" dataKey="value" innerRadius={50} outerRadius={70}>
+                    {priorityData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Legend />
+                </RePieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

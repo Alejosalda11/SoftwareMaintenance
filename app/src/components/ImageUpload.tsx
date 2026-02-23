@@ -14,6 +14,7 @@ interface ImageUploadProps {
 
 export function ImageUpload({ images, onChange, maxImages = 10 }: ImageUploadProps) {
   const [dragActive, setDragActive] = useState(false);
+  const [defaultNewType, setDefaultNewType] = useState<'before' | 'after'>('before');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const convertFileToBase64 = (file: File): Promise<string> => {
@@ -37,7 +38,7 @@ export function ImageUpload({ images, onChange, maxImages = 10 }: ImageUploadPro
         try {
           const base64 = await convertFileToBase64(file);
           newImages.push({
-            type: 'before', // Default to 'before', user can change it
+            type: defaultNewType,
             url: base64,
             uploadedAt: new Date().toISOString()
           });
@@ -128,6 +129,33 @@ export function ImageUpload({ images, onChange, maxImages = 10 }: ImageUploadPro
             onChange={handleInputChange}
             className="hidden"
           />
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <span className="text-sm text-gray-600">Upload as:</span>
+            <div className="flex rounded-md border border-gray-300 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setDefaultNewType('before')}
+                className={`px-3 py-1.5 text-sm font-medium ${
+                  defaultNewType === 'before'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Before
+              </button>
+              <button
+                type="button"
+                onClick={() => setDefaultNewType('after')}
+                className={`px-3 py-1.5 text-sm font-medium ${
+                  defaultNewType === 'after'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                After
+              </button>
+            </div>
+          </div>
           <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
           <p className="text-sm text-gray-600 mb-2">
             Drag and drop images here, or{' '}

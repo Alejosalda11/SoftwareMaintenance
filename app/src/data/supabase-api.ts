@@ -40,10 +40,12 @@ function rowToDamage(r: Record<string, unknown>): Damage {
     completedDate: (r.completed_date as string) || undefined,
     cost: Number(r.cost ?? 0),
     materials: Array.isArray(r.materials) ? r.materials as string[] : [],
+    itemsUsed: Array.isArray(r.items_used) ? (r.items_used as Damage['itemsUsed']) : undefined,
     notes: (r.notes as string) ?? '',
     reportedBy: r.reported_by as string,
     assignedTo: (r.assigned_to as string) || undefined,
     images: Array.isArray(r.images) ? (r.images as Damage['images']) : [],
+    lastEditedAt: (r.last_edited_at as string) || undefined,
   };
 }
 
@@ -141,10 +143,12 @@ function damageToRow(d: Partial<Damage>): Record<string, unknown> {
   if (d.completedDate != null) row.completed_date = d.completedDate;
   if (d.cost != null) row.cost = d.cost;
   if (d.materials != null) row.materials = d.materials;
+  if (d.itemsUsed != null) row.items_used = d.itemsUsed;
   if (d.notes != null) row.notes = d.notes;
   if (d.reportedBy != null) row.reported_by = d.reportedBy;
   if (d.assignedTo != null) row.assigned_to = d.assignedTo;
   if (d.images != null) row.images = d.images;
+  if (d.lastEditedAt != null) row.last_edited_at = d.lastEditedAt;
   return row;
 }
 

@@ -12,7 +12,10 @@ import {
   Clock,
   AlertCircle,
   X,
-  Building2
+  Building2,
+  Calendar,
+  User,
+  DollarSign
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,10 +26,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { getDamages, addDamage, updateDamage, deleteDamage, getCurrentHotel, getCurrentUser, getUsers } from '@/data/store';
-import type { Damage, DamageStatus, DamagePriority, DamageCategory, Hotel, RepairImage } from '@/types';
-import { format } from 'date-fns';
+import type { Damage, DamageStatus, DamagePriority, DamageCategory, Hotel, RepairImage, RepairItem } from '@/types';
+import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { ImageUpload } from '@/components/ImageUpload';
+import { ImageGallery } from '@/components/ImageGallery';
 
 const categories: DamageCategory[] = ['plumbing', 'electrical', 'furniture', 'appliances', 'structural', 'hvac', 'painting', 'cleaning', 'other'];
 const priorities: DamagePriority[] = ['low', 'medium', 'high', 'urgent'];
@@ -41,6 +45,7 @@ export function DamageTracker() {
   const [filterCategory, setFilterCategory] = useState<DamageCategory | 'all'>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingDamage, setEditingDamage] = useState<Damage | null>(null);
+  const [selectedDamage, setSelectedDamage] = useState<Damage | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -55,6 +60,7 @@ export function DamageTracker() {
     assignedTo: ''
   });
   const [images, setImages] = useState<RepairImage[]>([]);
+  const [itemsUsed, setItemsUsed] = useState<RepairItem[]>([]);
 
   useEffect(() => {
     const currentHotel = getCurrentHotel();
@@ -86,6 +92,7 @@ export function DamageTracker() {
       assignedTo: ''
     });
     setImages([]);
+    setItemsUsed([]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -107,7 +114,10 @@ export function DamageTracker() {
       priority: formData.priority,
       reportedDate: new Date().toISOString().split('T')[0],
       cost: parseFloat(formData.cost) || 0,
-      materials: formData.materials.split(',').map(m => m.trim()).filter(Boolean),
+      materials: itemsUsed.length > 0
+        ? itemsUsed.map(i => (i.brand ? `${i.name} (${i.brand})` : i.name))
+        : formData.materials.split(',').map(m => m.trim()).filter(Boolean),
+      itemsUsed: itemsUsed.length > 0 ? itemsUsed : undefined,
       notes: formData.notes,
       reportedBy: currentUser?.name || 'Handyman',
       assignedTo: formData.assignedTo || currentUser?.name || undefined,
@@ -157,6 +167,7 @@ export function DamageTracker() {
     } else {
       setImages([]);
     }
+    setItemsUsed(damage.itemsUsed && damage.itemsUsed.length > 0 ? damage.itemsUsed : []);
     setIsAddDialogOpen(true);
   };
 
@@ -167,18 +178,6 @@ export function DamageTracker() {
       if (hotel) {
         loadHotelData(hotel.id);
       }
-    }
-  };
-
-  const handleStatusChange = (damage: Damage, newStatus: DamageStatus) => {
-    const updates: Partial<Damage> = { status: newStatus };
-    if (newStatus === 'completed') {
-      updates.completedDate = new Date().toISOString().split('T')[0];
-    }
-    updateDamage(damage.id, updates);
-    toast.success(`Status updated to ${newStatus}`);
-    if (hotel) {
-      loadHotelData(hotel.id);
     }
   };
 
@@ -235,6 +234,16 @@ export function DamageTracker() {
       case 'in-progress': return <Clock className="w-4 h-4" />;
       case 'pending': return <AlertCircle className="w-4 h-4" />;
       default: return <X className="w-4 h-4" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-700 border-green-200';
+      case 'in-progress': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'cancelled': return 'bg-gray-100 text-gray-700 border-gray-200';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
 
@@ -427,12 +436,75 @@ export function DamageTracker() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Materials (comma separated)</Label>
+                  <Label>Materials (comma separated, or use items below)</Label>
                   <Input
                     value={formData.materials}
                     onChange={(e) => setFormData({...formData, materials: e.target.value})}
                     placeholder="e.g., screws, paint, bulbs"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Items used (name, brand, cost)</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setItemsUsed([...itemsUsed, { name: '', brand: '', estimatedCost: undefined }])}
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add item
+                    </Button>
+                  </div>
+                  {itemsUsed.length > 0 && (
+                    <div className="space-y-2 border rounded-md p-2 bg-gray-50">
+                      {itemsUsed.map((item, idx) => (
+                        <div key={idx} className="flex flex-wrap gap-2 items-center">
+                          <Input
+                            placeholder="Item name"
+                            value={item.name}
+                            onChange={(e) => {
+                              const next = [...itemsUsed];
+                              next[idx] = { ...next[idx], name: e.target.value };
+                              setItemsUsed(next);
+                            }}
+                            className="flex-1 min-w-[100px]"
+                          />
+                          <Input
+                            placeholder="Brand"
+                            value={item.brand}
+                            onChange={(e) => {
+                              const next = [...itemsUsed];
+                              next[idx] = { ...next[idx], brand: e.target.value };
+                              setItemsUsed(next);
+                            }}
+                            className="w-28"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Cost"
+                            value={item.estimatedCost ?? ''}
+                            onChange={(e) => {
+                              const next = [...itemsUsed];
+                              next[idx] = { ...next[idx], estimatedCost: e.target.value ? parseFloat(e.target.value) : undefined };
+                              setItemsUsed(next);
+                            }}
+                            className="w-20"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setItemsUsed(itemsUsed.filter((_, i) => i !== idx))}
+                          >
+                            <X className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="space-y-2">
@@ -474,7 +546,11 @@ export function DamageTracker() {
           </Card>
         ) : (
           sortedDamages.map((damage) => (
-            <Card key={damage.id} className="overflow-hidden">
+            <Card
+              key={damage.id}
+              className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => setSelectedDamage(damage)}
+            >
               <CardContent className="p-4">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                   <div className="flex-1">
@@ -491,7 +567,16 @@ export function DamageTracker() {
                     <p className="text-gray-600 mt-1 capitalize">{damage.category}</p>
                     <p className="text-gray-800 mt-2">{damage.description}</p>
                     
-                    {damage.materials.length > 0 && (
+                    {damage.itemsUsed && damage.itemsUsed.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {damage.itemsUsed.map((item, idx) => (
+                          <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                            {item.brand ? `${item.name} (${item.brand})` : item.name}
+                            {item.estimatedCost != null ? ` — ${formatCurrency(item.estimatedCost)}` : ''}
+                          </span>
+                        ))}
+                      </div>
+                    ) : damage.materials.length > 0 ? (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {damage.materials.map((material, idx) => (
                           <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
@@ -499,7 +584,7 @@ export function DamageTracker() {
                           </span>
                         ))}
                       </div>
-                    )}
+                    ) : null}
                     
                     <div className="flex items-center gap-4 mt-3 text-sm text-gray-500 flex-wrap">
                       <span>Reported: {format(new Date(damage.reportedDate), 'MMM d, yyyy')}</span>
@@ -508,19 +593,7 @@ export function DamageTracker() {
                     </div>
                   </div>
                   
-                  <div className="flex sm:flex-col gap-2">
-                    <Select 
-                      value={damage.status} 
-                      onValueChange={(v) => handleStatusChange(damage, v as DamageStatus)}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    
+                  <div className="flex sm:flex-col gap-2" onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(damage)}>
                         <Edit2 className="w-4 h-4" />
@@ -536,6 +609,86 @@ export function DamageTracker() {
           ))
         )}
       </div>
+
+      {/* Detail Modal */}
+      <Dialog open={selectedDamage !== null} onOpenChange={(open) => !open && setSelectedDamage(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          {selectedDamage && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Room {selectedDamage.roomNumber} – {selectedDamage.category}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className={getStatusColor(selectedDamage.status)}>
+                    {selectedDamage.status}
+                  </Badge>
+                  <Badge variant="outline" className="capitalize">
+                    {selectedDamage.priority}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Wrench className="w-4 h-4" />
+                  <span className="capitalize">{selectedDamage.category}</span>
+                </div>
+                <p className="text-gray-800">{selectedDamage.description}</p>
+                {selectedDamage.notes && (
+                  <p className="text-sm text-gray-500 italic">{selectedDamage.notes}</p>
+                )}
+                {selectedDamage.images && selectedDamage.images.length > 0 && (
+                  <ImageGallery images={selectedDamage.images} damageId={selectedDamage.id} />
+                )}
+                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    Reported: {format(parseISO(selectedDamage.reportedDate), 'MMM d, yyyy')}
+                  </span>
+                  {selectedDamage.completedDate && (
+                    <span className="flex items-center gap-1 text-green-600">
+                      <CheckCircle className="w-4 h-4" />
+                      Completed: {format(parseISO(selectedDamage.completedDate), 'MMM d, yyyy')}
+                    </span>
+                  )}
+                  {selectedDamage.assignedTo && (
+                    <span className="flex items-center gap-1">
+                      <User className="w-4 h-4" />
+                      {selectedDamage.assignedTo}
+                    </span>
+                  )}
+                  {selectedDamage.lastEditedAt && (
+                    <span className="flex items-center gap-1 text-gray-500">
+                      <Calendar className="w-4 h-4" />
+                      Last edited: {format(parseISO(selectedDamage.lastEditedAt), 'MMM d, yyyy HH:mm')}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 text-lg font-semibold">
+                  <DollarSign className="w-5 h-5" />
+                  {formatCurrency(selectedDamage.cost)}
+                </div>
+                {(selectedDamage.itemsUsed && selectedDamage.itemsUsed.length > 0) ? (
+                  <div className="flex flex-wrap gap-1">
+                    {selectedDamage.itemsUsed.map((item, idx) => (
+                      <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                        {item.brand ? `${item.name} (${item.brand})` : item.name}
+                        {item.estimatedCost != null ? ` — ${formatCurrency(item.estimatedCost)}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                ) : selectedDamage.materials.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {selectedDamage.materials.map((material, idx) => (
+                      <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                        {material}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

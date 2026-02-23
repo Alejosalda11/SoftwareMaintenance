@@ -1,8 +1,8 @@
 // Hotel Maintenance Pro - Mobile Bottom Navigation
 
-import { LayoutDashboard, Wrench, History, BarChart3, Home, Calendar } from 'lucide-react';
+import { LayoutDashboard, Wrench, History, BarChart3, Calendar } from 'lucide-react';
 
-type Page = 'dashboard' | 'damages' | 'history' | 'reports' | 'rooms' | 'preventive';
+type Page = 'dashboard' | 'damages' | 'history' | 'reports' | 'preventive';
 
 interface MobileNavProps {
   currentPage: Page;
@@ -13,7 +13,6 @@ const navItems: { id: Page; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'damages', label: 'Repairs', icon: Wrench },
   { id: 'history', label: 'History', icon: History },
-  { id: 'rooms', label: 'Rooms', icon: Home },
   { id: 'preventive', label: 'Preventive', icon: Calendar },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
 ];

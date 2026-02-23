@@ -9,14 +9,17 @@ import {
   TrendingUp,
   AlertCircle,
   Calendar,
-  Building2
+  Building2,
+  User
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getDamages, getMaintenanceStats, getRooms, getCurrentHotel } from '@/data/store';
 import type { Damage, Hotel } from '@/types';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import { ImageGallery } from '@/components/ImageGallery';
 
 export function Dashboard() {
   const [hotel, setHotel] = useState<Hotel | null>(null);
@@ -29,6 +32,7 @@ export function Dashboard() {
   });
   const [recentDamages, setRecentDamages] = useState<Damage[]>([]);
   const [roomsInMaintenance, setRoomsInMaintenance] = useState(0);
+  const [selectedDamage, setSelectedDamage] = useState<Damage | null>(null);
 
   useEffect(() => {
     const currentHotel = getCurrentHotel();
@@ -67,6 +71,16 @@ export function Dashboard() {
       style: 'currency',
       currency: 'USD'
     }).format(amount);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-700 border-green-200';
+      case 'in-progress': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'cancelled': return 'bg-gray-100 text-gray-700 border-gray-200';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
   };
 
   if (!hotel) {
@@ -233,7 +247,11 @@ export function Dashboard() {
               recentDamages.map((damage) => (
                 <div 
                   key={damage.id} 
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedDamage(damage)}
+                  onKeyDown={(e) => e.key === 'Enter' && setSelectedDamage(damage)}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
@@ -264,6 +282,86 @@ export function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Detail Modal */}
+      <Dialog open={selectedDamage !== null} onOpenChange={(open) => !open && setSelectedDamage(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          {selectedDamage && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Room {selectedDamage.roomNumber} – {selectedDamage.category}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className={getStatusColor(selectedDamage.status)}>
+                    {selectedDamage.status}
+                  </Badge>
+                  <Badge variant="outline" className="capitalize">
+                    {selectedDamage.priority}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Wrench className="w-4 h-4" />
+                  <span className="capitalize">{selectedDamage.category}</span>
+                </div>
+                <p className="text-gray-800">{selectedDamage.description}</p>
+                {selectedDamage.notes && (
+                  <p className="text-sm text-gray-500 italic">{selectedDamage.notes}</p>
+                )}
+                {selectedDamage.images && selectedDamage.images.length > 0 && (
+                  <ImageGallery images={selectedDamage.images} damageId={selectedDamage.id} />
+                )}
+                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    Reported: {format(parseISO(selectedDamage.reportedDate), 'MMM d, yyyy')}
+                  </span>
+                  {selectedDamage.completedDate && (
+                    <span className="flex items-center gap-1 text-green-600">
+                      <CheckCircle className="w-4 h-4" />
+                      Completed: {format(parseISO(selectedDamage.completedDate), 'MMM d, yyyy')}
+                    </span>
+                  )}
+                  {selectedDamage.assignedTo && (
+                    <span className="flex items-center gap-1">
+                      <User className="w-4 h-4" />
+                      {selectedDamage.assignedTo}
+                    </span>
+                  )}
+                  {selectedDamage.lastEditedAt && (
+                    <span className="flex items-center gap-1 text-gray-500">
+                      <Calendar className="w-4 h-4" />
+                      Last edited: {format(parseISO(selectedDamage.lastEditedAt), 'MMM d, yyyy HH:mm')}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 text-lg font-semibold">
+                  <DollarSign className="w-5 h-5" />
+                  {formatCurrency(selectedDamage.cost)}
+                </div>
+                {(selectedDamage.itemsUsed && selectedDamage.itemsUsed.length > 0) ? (
+                  <div className="flex flex-wrap gap-1">
+                    {selectedDamage.itemsUsed.map((item, idx) => (
+                      <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                        {item.brand ? `${item.name} (${item.brand})` : item.name}
+                        {item.estimatedCost != null ? ` — ${formatCurrency(item.estimatedCost)}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                ) : selectedDamage.materials.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {selectedDamage.materials.map((material, idx) => (
+                      <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                        {material}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

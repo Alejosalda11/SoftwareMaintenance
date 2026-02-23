@@ -11,20 +11,19 @@ import { DamageTracker } from '@/pages/DamageTracker';
 import { MaintenanceHistory } from '@/pages/MaintenanceHistory';
 import { Reports } from '@/pages/Reports';
 import { AdminSettings } from '@/pages/AdminSettings';
-import { Rooms } from '@/pages/Rooms';
 import { PreventiveSchedule } from '@/pages/PreventiveSchedule';
 import { MobileNav } from '@/components/MobileNav';
 import { Header } from '@/components/Header';
 import { Toaster } from '@/components/ui/sonner';
 
-type Page = 'dashboard' | 'damages' | 'history' | 'reports' | 'rooms' | 'preventive';
+type Page = 'dashboard' | 'damages' | 'history' | 'reports' | 'preventive';
 type AppState = 'login' | 'user-selection' | 'hotel-selection' | 'main' | 'admin-settings';
 
 function App() {
   const [appState, setAppState] = useState<AppState>('login');
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [isMobile, setIsMobile] = useState(false);
-  const [, setRefresh] = useState(0);
+  const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -157,19 +156,17 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard key={`dashboard-${refresh}`} />;
       case 'damages':
-        return <DamageTracker />;
+        return <DamageTracker key={`damages-${refresh}`} />;
       case 'history':
-        return <MaintenanceHistory />;
+        return <MaintenanceHistory key={`history-${refresh}`} />;
       case 'reports':
-        return <Reports />;
-      case 'rooms':
-        return <Rooms />;
+        return <Reports key={`reports-${refresh}`} />;
       case 'preventive':
-        return <PreventiveSchedule />;
+        return <PreventiveSchedule key={`preventive-${refresh}`} />;
       default:
-        return <Dashboard />;
+        return <Dashboard key={`dashboard-${refresh}`} />;
     }
   };
 

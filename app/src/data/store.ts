@@ -1739,6 +1739,7 @@ function filterDamagesByDateRange(damages: Damage[], dateRange?: DateRange): Dam
   });
 }
 
+/** Returns damages for a hotel (or all). Data is global: same for all users (no filter by current user). */
 export const getDamages = (hotelId?: string, dateRange?: DateRange): Damage[] => {
   if (supabase) {
     if (!hotelId) return [];
@@ -1770,10 +1771,11 @@ export const addDamage = (damage: Omit<Damage, 'id'>): Damage => {
 };
 
 export const updateDamage = (id: string, updates: Partial<Damage>): Damage | null => {
+  const updatesWithTimestamp = { ...updates, lastEditedAt: new Date().toISOString() };
   if (supabase) {
     const hotelId = currentHotelCache?.id;
     if (hotelId && damagesCache[hotelId]) {
-      api.updateDamage(id, updates).then((updated) => {
+      api.updateDamage(id, updatesWithTimestamp).then((updated) => {
         if (updated) {
           const idx = damagesCache[hotelId].findIndex(d => d.id === id);
           if (idx >= 0) damagesCache[hotelId][idx] = updated;
@@ -1783,13 +1785,14 @@ export const updateDamage = (id: string, updates: Partial<Damage>): Damage | nul
     }
     const list = damagesCache[currentHotelCache?.id ?? ''];
     const existing = list?.find(d => d.id === id);
-    return existing ? { ...existing, ...updates } : null;
+    return existing ? { ...existing, ...updatesWithTimestamp } : null;
   }
   const damages = getDamages();
   const index = damages.findIndex(d => d.id === id);
   if (index === -1) return null;
-  damages[index] = { ...damages[index], ...updates };
+  damages[index] = { ...damages[index], ...updatesWithTimestamp };
   localStorage.setItem(STORAGE_KEYS.damages, JSON.stringify(damages));
+  notify();
   return damages[index];
 };
 

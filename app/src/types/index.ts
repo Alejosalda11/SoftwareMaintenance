@@ -42,6 +42,12 @@ export interface RepairImage {
   uploadedAt: string;
 }
 
+export interface RepairItem {
+  name: string;
+  brand: string;
+  estimatedCost?: number;
+}
+
 export interface Damage {
   id: string;
   hotelId: string;
@@ -54,10 +60,12 @@ export interface Damage {
   completedDate?: string;
   cost: number;
   materials: string[];
+  itemsUsed?: RepairItem[]; // Item name, brand, and optional cost for tracking
   notes: string;
   reportedBy: string;
   assignedTo?: string;
   images: string[] | RepairImage[]; // Support both old format (string[]) and new format (RepairImage[])
+  lastEditedAt?: string; // ISO date when repair was last updated
 }
 
 export type RoomStatus = 'available' | 'occupied' | 'maintenance' | 'out-of-order';

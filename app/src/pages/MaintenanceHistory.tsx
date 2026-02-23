@@ -494,7 +494,16 @@ export function MaintenanceHistory() {
                   <DollarSign className="w-5 h-5" />
                   {formatCurrency(selectedDamage.cost)}
                 </div>
-                {selectedDamage.materials.length > 0 && (
+                {(selectedDamage.itemsUsed && selectedDamage.itemsUsed.length > 0) ? (
+                  <div className="flex flex-wrap gap-1">
+                    {selectedDamage.itemsUsed.map((item, idx) => (
+                      <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                        {item.brand ? `${item.name} (${item.brand})` : item.name}
+                        {item.estimatedCost != null ? ` — ${formatCurrency(item.estimatedCost)}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                ) : selectedDamage.materials.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
                     {selectedDamage.materials.map((material, idx) => (
                       <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
@@ -502,7 +511,7 @@ export function MaintenanceHistory() {
                       </span>
                     ))}
                   </div>
-                )}
+                ) : null}
               </div>
             </>
           )}

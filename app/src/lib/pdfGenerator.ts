@@ -5,16 +5,22 @@ import autoTable from 'jspdf-autotable';
 import type { Hotel, Damage, CategoryStats, MaintenanceStats } from '@/types';
 import { format } from 'date-fns';
 
+export interface ChartImageOption {
+  title: string;
+  dataUrl: string;
+}
+
 interface PDFOptions {
   hotel: Hotel;
   damages: Damage[];
   categoryStats: CategoryStats[];
   maintenanceStats: MaintenanceStats;
   dateRange?: { start: string; end: string };
+  chartImages?: ChartImageOption[];
 }
 
 export async function generatePDFReport(options: PDFOptions): Promise<void> {
-  const { hotel, damages, categoryStats, maintenanceStats, dateRange } = options;
+  const { hotel, damages, categoryStats, maintenanceStats, dateRange, chartImages } = options;
   
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -151,6 +157,28 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
       },
       alternateRowStyles: { fillColor: [245, 247, 250] },
     });
+  }
+
+  // Chart images (if provided)
+  if (chartImages && chartImages.length > 0) {
+    const chartWidth = pageWidth - 40;
+    const chartHeight = 70;
+    for (const chart of chartImages) {
+      if (yPos > pageHeight - chartHeight - 30) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text(chart.title, 20, yPos);
+      yPos += 6;
+      try {
+        doc.addImage(chart.dataUrl, 'PNG', 20, yPos, chartWidth, chartHeight);
+        yPos += chartHeight + 15;
+      } catch {
+        yPos += 5;
+      }
+    }
   }
 
   // Footer on each page

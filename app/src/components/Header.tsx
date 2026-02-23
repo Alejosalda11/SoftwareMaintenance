@@ -12,7 +12,6 @@ import {
   ArrowRightLeft,
   Settings,
   Shield,
-  Home,
   Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -29,7 +28,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-type Page = 'dashboard' | 'damages' | 'history' | 'reports' | 'rooms' | 'preventive';
+type Page = 'dashboard' | 'damages' | 'history' | 'reports' | 'preventive';
 
 interface HeaderProps {
   currentPage: Page;
@@ -43,7 +42,6 @@ const navItems: { id: Page; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'damages', label: 'Damage Tracker', icon: Wrench },
   { id: 'history', label: 'History', icon: History },
-  { id: 'rooms', label: 'Rooms', icon: Home },
   { id: 'preventive', label: 'Preventive', icon: Calendar },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
 ];
