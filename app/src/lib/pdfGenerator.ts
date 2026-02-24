@@ -173,7 +173,7 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 100, 100);
-      doc.text('External rates are AUD/h 2026 Sydney reference. Uses hours per repair when set; otherwise 1 hour.', 20, yPos);
+      doc.text('External = (rate AUD/h) × hours spent per repair. Repairs without hours use 1 h. Rates are Sydney 2026 reference.', 20, yPos);
       doc.setTextColor(0, 0, 0);
       yPos += 15;
     }

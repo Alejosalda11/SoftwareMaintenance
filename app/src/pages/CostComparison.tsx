@@ -115,7 +115,7 @@ export function CostComparison() {
           Cost comparison
         </h1>
         <p className="text-sm text-gray-600">
-          Rates are Sydney NSW 2026 reference (AUD/h). You can edit below. External cost uses hours per repair (default 1 h when not set).
+          Rates are Sydney NSW 2026 reference (AUD/h). You can edit below. External estimated cost = (rate AUD/h) × hours spent per repair; repairs without hours use 1 h.
         </p>
       </div>
 
@@ -194,7 +194,7 @@ export function CostComparison() {
         <CardHeader>
           <CardTitle className="text-lg">Internal vs external (estimated)</CardTitle>
           <p className="text-sm text-gray-500">
-            For the selected period: internal = what you paid; external = rate × 1 h per repair; savings = external − internal.
+            For the selected period: internal = what you paid; external = sum of (rate × hours) for each repair; savings = external − internal.
           </p>
         </CardHeader>
         <CardContent>
@@ -205,7 +205,7 @@ export function CostComparison() {
                   <th className="text-left py-2 font-medium">Category</th>
                   <th className="text-right py-2 font-medium">Repairs</th>
                   <th className="text-right py-2 font-medium">Internal (AUD)</th>
-                  <th className="text-right py-2 font-medium">External est. (AUD)</th>
+                  <th className="text-right py-2 font-medium">External (by hours, AUD)</th>
                   <th className="text-right py-2 font-medium">Savings (AUD)</th>
                 </tr>
               </thead>
