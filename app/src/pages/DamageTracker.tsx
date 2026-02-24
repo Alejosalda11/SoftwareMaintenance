@@ -55,6 +55,7 @@ export function DamageTracker() {
     priority: 'medium' as DamagePriority,
     status: 'pending' as DamageStatus,
     cost: '',
+    hoursSpent: '',
     materials: '',
     notes: '',
     assignedTo: ''
@@ -87,6 +88,7 @@ export function DamageTracker() {
       priority: 'medium',
       status: 'pending',
       cost: '',
+      hoursSpent: '',
       materials: '',
       notes: '',
       assignedTo: ''
@@ -105,6 +107,7 @@ export function DamageTracker() {
 
     const currentUser = getCurrentUser();
     
+    const hoursVal = parseFloat(formData.hoursSpent);
     const damageData = {
       hotelId: hotel.id,
       roomNumber: formData.roomNumber,
@@ -114,6 +117,7 @@ export function DamageTracker() {
       priority: formData.priority,
       reportedDate: new Date().toISOString().split('T')[0],
       cost: parseFloat(formData.cost) || 0,
+      hoursSpent: hoursVal > 0 ? hoursVal : undefined,
       materials: itemsUsed.length > 0
         ? itemsUsed.map(i => (i.brand ? `${i.name} (${i.brand})` : i.name))
         : formData.materials.split(',').map(m => m.trim()).filter(Boolean),
@@ -148,6 +152,7 @@ export function DamageTracker() {
       priority: damage.priority,
       status: damage.status,
       cost: damage.cost.toString(),
+      hoursSpent: damage.hoursSpent != null ? damage.hoursSpent.toString() : '',
       materials: damage.materials.join(', '),
       notes: damage.notes,
       assignedTo: damage.assignedTo || ''
@@ -417,6 +422,22 @@ export function DamageTracker() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label>Hours spent</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.25}
+                      value={formData.hoursSpent}
+                      onChange={(e) => setFormData({...formData, hoursSpent: e.target.value})}
+                      placeholder="e.g. 1.5"
+                    />
+                    {formData.cost && formData.hoursSpent && parseFloat(formData.hoursSpent) > 0 && (
+                      <p className="text-xs text-gray-500">
+                        Internal rate: ${(parseFloat(formData.cost) / parseFloat(formData.hoursSpent)).toFixed(2)}/h
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
                     <Label>Assigned To</Label>
                     <Select 
                       value={formData.assignedTo || '__unassigned__'} 
@@ -666,6 +687,16 @@ export function DamageTracker() {
                   <DollarSign className="w-5 h-5" />
                   {formatCurrency(selectedDamage.cost)}
                 </div>
+                {(selectedDamage.hoursSpent != null && selectedDamage.hoursSpent > 0) && (
+                  <div className="text-sm text-gray-600">
+                    Hours spent: {selectedDamage.hoursSpent} h
+                    {selectedDamage.cost != null && (
+                      <span className="ml-2">
+                        Effective rate: {formatCurrency(selectedDamage.cost / selectedDamage.hoursSpent)}/h
+                      </span>
+                    )}
+                  </div>
+                )}
                 {(selectedDamage.itemsUsed && selectedDamage.itemsUsed.length > 0) ? (
                   <div className="flex flex-wrap gap-1">
                     {selectedDamage.itemsUsed.map((item, idx) => (

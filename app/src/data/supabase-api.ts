@@ -56,6 +56,7 @@ function rowToDamage(r: Record<string, unknown>): Damage {
         })
       : [],
     lastEditedAt: (r.last_edited_at as string) || undefined,
+    hoursSpent: r.hours_spent != null ? Number(r.hours_spent) : undefined,
   };
 }
 
@@ -159,6 +160,7 @@ function damageToRow(d: Partial<Damage>): Record<string, unknown> {
   if (d.assignedTo != null) row.assigned_to = d.assignedTo;
   if (d.images != null) row.images = d.images;
   if (d.lastEditedAt != null) row.last_edited_at = d.lastEditedAt;
+  if (d.hoursSpent != null) row.hours_spent = d.hoursSpent;
   return row;
 }
 

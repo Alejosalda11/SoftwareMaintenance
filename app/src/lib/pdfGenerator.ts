@@ -129,8 +129,9 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
     }
     for (const d of damages) {
       const cat = d.category;
+      const hours = d.hoursSpent ?? 1;
       byCategory[cat].internal += d.cost ?? 0;
-      byCategory[cat].external += externalRates[cat] * 1;
+      byCategory[cat].external += externalRates[cat] * hours;
     }
     let totalInternal = 0;
     let totalExternal = 0;
@@ -172,7 +173,7 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 100, 100);
-      doc.text('External rates are AUD/h 2026 Sydney reference. Estimated at 1 hour per repair.', 20, yPos);
+      doc.text('External rates are AUD/h 2026 Sydney reference. Uses hours per repair when set; otherwise 1 hour.', 20, yPos);
       doc.setTextColor(0, 0, 0);
       yPos += 15;
     }

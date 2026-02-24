@@ -16,6 +16,16 @@ import { CostComparison } from '@/pages/CostComparison';
 import { MobileNav } from '@/components/MobileNav';
 import { Header } from '@/components/Header';
 import { Toaster } from '@/components/ui/sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type Page = 'dashboard' | 'damages' | 'history' | 'reports' | 'preventive' | 'comparison';
 type AppState = 'login' | 'user-selection' | 'hotel-selection' | 'main' | 'admin-settings';
@@ -25,6 +35,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [isMobile, setIsMobile] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [showLogoutConfirmFromAdmin, setShowLogoutConfirmFromAdmin] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,7 +91,9 @@ function App() {
     setAppState('admin-settings');
   };
 
-  const handleBackFromAdmin = () => {
+  const handleBackFromAdmin = () => setShowLogoutConfirmFromAdmin(true);
+  const handleLogoutConfirmFromAdmin = () => {
+    setShowLogoutConfirmFromAdmin(false);
     logout();
     setAppState('login');
   };
@@ -122,11 +135,25 @@ function App() {
       
       case 'admin-settings':
         return (
-          <main className="pt-16 min-h-screen">
-            <div className="p-4 md:p-6 max-w-7xl mx-auto">
-              <AdminSettings onBack={handleBackFromAdmin} />
-            </div>
-          </main>
+          <>
+            <main className="pt-16 min-h-screen">
+              <div className="p-4 md:p-6 max-w-7xl mx-auto">
+                <AdminSettings onBack={handleBackFromAdmin} />
+              </div>
+            </main>
+            <AlertDialog open={showLogoutConfirmFromAdmin} onOpenChange={setShowLogoutConfirmFromAdmin}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Log out</AlertDialogTitle>
+                  <AlertDialogDescription>Do you want to log out?</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleLogoutConfirmFromAdmin}>Accept</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         );
       
       case 'main':

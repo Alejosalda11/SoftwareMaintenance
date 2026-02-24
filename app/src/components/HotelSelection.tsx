@@ -7,6 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getHotels, setCurrentHotel, getCurrentUser, logout } from '@/data/store';
 import type { Hotel } from '@/types';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface HotelSelectionProps {
   onHotelSelected: () => void;
@@ -17,6 +27,7 @@ export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProp
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [currentUser, setCurrentUser] = useState<string>('');
   const [userRole, setUserRole] = useState<string>('');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     const allHotels = getHotels();
@@ -34,7 +45,9 @@ export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProp
     onHotelSelected();
   };
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => setShowLogoutConfirm(true);
+  const handleLogoutConfirm = () => {
+    setShowLogoutConfirm(false);
     logout();
     onLogout();
   };
@@ -65,11 +78,23 @@ export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProp
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center justify-center p-4">
       {/* Header: solo Logout (no se puede volver a cambiar de usuario) */}
       <div className="w-full max-w-md mb-6 flex justify-end">
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
+        <Button variant="ghost" size="sm" onClick={handleLogoutClick}>
           <LogOut className="w-4 h-4 mr-2" />
           Logout
         </Button>
       </div>
+      <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Log out</AlertDialogTitle>
+            <AlertDialogDescription>Do you want to log out?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLogoutConfirm}>Accept</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Welcome */}
       <div className="mb-8 text-center">

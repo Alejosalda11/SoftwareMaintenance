@@ -339,6 +339,16 @@ export function Dashboard() {
                   <DollarSign className="w-5 h-5" />
                   {formatCurrency(selectedDamage.cost)}
                 </div>
+                {(selectedDamage.hoursSpent != null && selectedDamage.hoursSpent > 0) && (
+                  <div className="text-sm text-gray-600">
+                    Hours spent: {selectedDamage.hoursSpent} h
+                    {selectedDamage.cost != null && (
+                      <span className="ml-2">
+                        Effective rate: {formatCurrency(selectedDamage.cost / selectedDamage.hoursSpent)}/h
+                      </span>
+                    )}
+                  </div>
+                )}
                 {(selectedDamage.itemsUsed && selectedDamage.itemsUsed.length > 0) ? (
                   <div className="flex flex-wrap gap-1">
                     {selectedDamage.itemsUsed.map((item, idx) => (

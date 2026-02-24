@@ -69,6 +69,7 @@ export interface Damage {
   assignedTo?: string;
   images: string[] | RepairImage[]; // Support both old format (string[]) and new format (RepairImage[])
   lastEditedAt?: string; // ISO date when repair was last updated
+  hoursSpent?: number; // Duration in hours (e.g. 1.5) for internal rate and external estimate
 }
 
 export type RoomStatus = 'available' | 'occupied' | 'maintenance' | 'out-of-order';

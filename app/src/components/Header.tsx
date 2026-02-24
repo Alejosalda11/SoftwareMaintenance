@@ -28,6 +28,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type Page = 'dashboard' | 'damages' | 'history' | 'reports' | 'preventive' | 'comparison';
 
@@ -50,6 +60,7 @@ const navItems: { id: Page; label: string; icon: React.ElementType }[] = [
 
 export function Header({ currentPage, onPageChange, isMobile, onSwitchHotel, onAdminSettings }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentHotel, setCurrentHotel] = useState<Hotel | null>(null);
   const [canAccessAdmin, setCanAccessAdmin] = useState(false);
@@ -61,7 +72,9 @@ export function Header({ currentPage, onPageChange, isMobile, onSwitchHotel, onA
     setCurrentHotel(getCurrentHotel());
   }, []);
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => setShowLogoutConfirm(true);
+  const handleLogoutConfirm = () => {
+    setShowLogoutConfirm(false);
     logout();
     window.location.reload();
   };
@@ -74,6 +87,7 @@ export function Header({ currentPage, onPageChange, isMobile, onSwitchHotel, onA
 
   if (isMobile) {
     return (
+      <>
       <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 z-50 px-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {currentHotel?.image ? (
@@ -152,7 +166,7 @@ export function Header({ currentPage, onPageChange, isMobile, onSwitchHotel, onA
               <Button 
                 variant="ghost" 
                 className="w-full justify-start text-red-600"
-                onClick={handleLogout}
+                onClick={handleLogoutClick}
               >
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout
@@ -161,6 +175,19 @@ export function Header({ currentPage, onPageChange, isMobile, onSwitchHotel, onA
           </div>
         )}
       </header>
+      <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Log out</AlertDialogTitle>
+            <AlertDialogDescription>Do you want to log out?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLogoutConfirm}>Accept</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      </>
     );
   }
 
@@ -268,7 +295,7 @@ export function Header({ currentPage, onPageChange, isMobile, onSwitchHotel, onA
                   Admin Settings
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+              <DropdownMenuItem onClick={handleLogoutClick} className="text-red-600">
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout
               </DropdownMenuItem>
@@ -291,6 +318,18 @@ export function Header({ currentPage, onPageChange, isMobile, onSwitchHotel, onA
           </div>
         </div>
       </header>
+      <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Log out</AlertDialogTitle>
+            <AlertDialogDescription>Do you want to log out?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLogoutConfirm}>Accept</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

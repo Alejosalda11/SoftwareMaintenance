@@ -74,7 +74,8 @@ export function CostComparison() {
     for (const d of damages) {
       const cat = d.category;
       const internal = d.cost ?? 0;
-      const externalEst = externalRates[cat] * 1; // 1 hour per repair
+      const hours = d.hoursSpent ?? 1;
+      const externalEst = externalRates[cat] * hours;
       const savings = externalEst - internal;
       byCategory[cat].count += 1;
       byCategory[cat].internal += internal;
@@ -114,7 +115,7 @@ export function CostComparison() {
           Cost comparison
         </h1>
         <p className="text-sm text-gray-600">
-          Rates are Sydney NSW 2026 reference (AUD/h). You can edit below. External cost is estimated at 1 hour per repair.
+          Rates are Sydney NSW 2026 reference (AUD/h). You can edit below. External cost uses hours per repair (default 1 h when not set).
         </p>
       </div>
 
