@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getCurrentHotel, getDamages, getExternalRates, setExternalRates, subscribe, type DateRange } from '@/data/store';
 import { getDefaultExternalRates, getAllCategories } from '@/constants/externalRates';
-import type { DamageCategory, ExternalRates } from '@/types';
+import type { DamageCategory } from '@/types';
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
