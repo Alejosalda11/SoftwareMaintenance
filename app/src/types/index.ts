@@ -13,6 +13,9 @@ export type DamageCategory =
   | 'cleaning' 
   | 'other';
 
+/** External hourly rates (AUD/h) per category - Sydney NSW 2026 reference. */
+export type ExternalRates = Record<DamageCategory, number>;
+
 export type UserRole = 'superadmin' | 'admin' | 'handyman';
 
 export interface Hotel {

@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getDamages, getCategoryStats, getMonthlyStats, getMaintenanceStats, getCurrentHotel, type DateRange } from '@/data/store';
+import { getDamages, getCategoryStats, getMonthlyStats, getMaintenanceStats, getCurrentHotel, getExternalRates, type DateRange } from '@/data/store';
 import { format, startOfWeek, endOfWeek, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import {
   BarChart,
@@ -141,7 +141,8 @@ export function Reports() {
           categoryStats,
           maintenanceStats,
           dateRange: dateRange ?? undefined,
-          chartImages: chartImages.length > 0 ? chartImages : undefined
+          chartImages: chartImages.length > 0 ? chartImages : undefined,
+          externalRates: getExternalRates(),
         });
         toast.success('PDF report generated successfully!');
       } catch (error) {

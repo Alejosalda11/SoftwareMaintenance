@@ -12,7 +12,7 @@ interface ImageGalleryProps {
   damageId: string;
 }
 
-export function ImageGallery({ images, damageId: _damageId }: ImageGalleryProps) {
+export function ImageGallery({ images }: ImageGalleryProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 

@@ -2,7 +2,8 @@
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { Hotel, Damage, CategoryStats, MaintenanceStats } from '@/types';
+import type { Hotel, Damage, CategoryStats, MaintenanceStats, ExternalRates, DamageCategory } from '@/types';
+import { getAllCategories } from '@/constants/externalRates';
 import { format } from 'date-fns';
 
 export interface ChartImageOption {
@@ -17,10 +18,11 @@ interface PDFOptions {
   maintenanceStats: MaintenanceStats;
   dateRange?: { start: string; end: string };
   chartImages?: ChartImageOption[];
+  externalRates?: ExternalRates;
 }
 
 export async function generatePDFReport(options: PDFOptions): Promise<void> {
-  const { hotel, damages, categoryStats, maintenanceStats, dateRange, chartImages } = options;
+  const { hotel, damages, categoryStats, maintenanceStats, dateRange, chartImages, externalRates } = options;
   
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -113,6 +115,67 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
     });
 
     yPos = (doc as any).lastAutoTable.finalY + 15;
+  }
+
+  // Internal vs external cost (when external rates provided)
+  if (externalRates && damages.length > 0) {
+    if (yPos > pageHeight - 80) {
+      doc.addPage();
+      yPos = 20;
+    }
+    const byCategory: Record<DamageCategory, { internal: number; external: number }> = {} as any;
+    for (const cat of getAllCategories()) {
+      byCategory[cat] = { internal: 0, external: 0 };
+    }
+    for (const d of damages) {
+      const cat = d.category;
+      byCategory[cat].internal += d.cost ?? 0;
+      byCategory[cat].external += externalRates[cat] * 1;
+    }
+    let totalInternal = 0;
+    let totalExternal = 0;
+    const rows: [string, string, string, string][] = [];
+    for (const cat of getAllCategories()) {
+      const row = byCategory[cat];
+      if (row.internal === 0 && row.external === 0) continue;
+      totalInternal += row.internal;
+      totalExternal += row.external;
+      rows.push([
+        cat.charAt(0).toUpperCase() + cat.slice(1),
+        `$${row.internal.toFixed(2)}`,
+        `$${row.external.toFixed(2)}`,
+        `$${(row.external - row.internal).toFixed(2)}`,
+      ]);
+    }
+    if (rows.length > 0) {
+      rows.push(['Total', `$${totalInternal.toFixed(2)}`, `$${totalExternal.toFixed(2)}`, `$${(totalExternal - totalInternal).toFixed(2)}`]);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Internal vs external cost (Sydney NSW 2026 reference)', 20, yPos);
+      yPos += 10;
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Category', 'Internal (AUD)', 'External estimated (AUD)', 'Savings (AUD)']],
+        body: rows,
+        theme: 'striped',
+        headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+        styles: { fontSize: 9 },
+        margin: { left: 20, right: 20 },
+        columnStyles: {
+          0: { cellWidth: 50 },
+          1: { cellWidth: 45, halign: 'right' },
+          2: { cellWidth: 50, halign: 'right' },
+          3: { cellWidth: 45, halign: 'right' },
+        },
+      });
+      yPos = (doc as any).lastAutoTable.finalY + 8;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text('External rates are AUD/h 2026 Sydney reference. Estimated at 1 hour per repair.', 20, yPos);
+      doc.setTextColor(0, 0, 0);
+      yPos += 15;
+    }
   }
 
   // Recent Repairs Table

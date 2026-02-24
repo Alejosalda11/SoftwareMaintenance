@@ -1,6 +1,7 @@
 // Hotel Maintenance Pro - Data Store (LocalStorage or Supabase)
 
-import type { Damage, Room, Hotel, User, MaintenanceStats, CategoryStats, MonthlyStats, PreventiveMaintenance } from '@/types';
+import type { Damage, Room, Hotel, User, MaintenanceStats, CategoryStats, MonthlyStats, PreventiveMaintenance, ExternalRates } from '@/types';
+import { getDefaultExternalRates } from '@/constants/externalRates';
 import { hashPassword, signUpNewUser, signOutSupabase } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import * as api from '@/data/supabase-api';
@@ -1428,7 +1429,8 @@ const STORAGE_KEYS = {
   hotels: 'hotel_maintenance_hotels',
   currentUser: 'hotel_maintenance_current_user',
   currentHotel: 'hotel_maintenance_current_hotel',
-  preventive: 'hotel_maintenance_preventive'
+  preventive: 'hotel_maintenance_preventive',
+  externalRates: 'hotel_maintenance_external_rates',
 };
 
 // Initialize data (async when Supabase is used)
@@ -1724,6 +1726,27 @@ export async function setCurrentHotel(hotel: Hotel | null): Promise<void> {
     localStorage.removeItem(STORAGE_KEYS.currentHotel);
   }
 }
+
+// ==================== EXTERNAL RATES (Cost comparison - Sydney NSW 2026) ====================
+
+export const getExternalRates = (): ExternalRates => {
+  const data = localStorage.getItem(STORAGE_KEYS.externalRates);
+  const defaults = getDefaultExternalRates();
+  if (!data) return defaults;
+  try {
+    const parsed = JSON.parse(data) as Partial<ExternalRates>;
+    return { ...defaults, ...parsed };
+  } catch {
+    return defaults;
+  }
+};
+
+export const setExternalRates = (rates: Partial<ExternalRates>): void => {
+  const current = getExternalRates();
+  const next = { ...current, ...rates };
+  localStorage.setItem(STORAGE_KEYS.externalRates, JSON.stringify(next));
+  notify();
+};
 
 // ==================== DAMAGE OPERATIONS ====================
 

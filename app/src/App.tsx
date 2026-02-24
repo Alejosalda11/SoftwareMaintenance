@@ -12,11 +12,12 @@ import { MaintenanceHistory } from '@/pages/MaintenanceHistory';
 import { Reports } from '@/pages/Reports';
 import { AdminSettings } from '@/pages/AdminSettings';
 import { PreventiveSchedule } from '@/pages/PreventiveSchedule';
+import { CostComparison } from '@/pages/CostComparison';
 import { MobileNav } from '@/components/MobileNav';
 import { Header } from '@/components/Header';
 import { Toaster } from '@/components/ui/sonner';
 
-type Page = 'dashboard' | 'damages' | 'history' | 'reports' | 'preventive';
+type Page = 'dashboard' | 'damages' | 'history' | 'reports' | 'preventive' | 'comparison';
 type AppState = 'login' | 'user-selection' | 'hotel-selection' | 'main' | 'admin-settings';
 
 function App() {
@@ -165,6 +166,8 @@ function App() {
         return <Reports key={`reports-${refresh}`} />;
       case 'preventive':
         return <PreventiveSchedule key={`preventive-${refresh}`} />;
+      case 'comparison':
+        return <CostComparison key={`comparison-${refresh}`} />;
       default:
         return <Dashboard key={`dashboard-${refresh}`} />;
     }
