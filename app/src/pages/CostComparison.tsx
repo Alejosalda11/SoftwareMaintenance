@@ -1,13 +1,13 @@
 // Hotel Maintenance Pro - Cost Comparison (internal vs external rates)
 
 import { useState, useMemo, useEffect } from 'react';
-import { Calculator, RotateCcw, DollarSign } from 'lucide-react';
+import { Calculator, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getCurrentHotel, getDamages, getExternalRates, setExternalRates, subscribe, type DateRange } from '@/data/store';
-import { getDefaultExternalRates, getAllCategories } from '@/constants/externalRates';
+import { getAllCategories } from '@/constants/externalRates';
 import type { DamageCategory } from '@/types';
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -99,11 +99,6 @@ export function CostComparison() {
     }
   };
 
-  const handleResetDefaults = () => {
-    const defaults = getDefaultExternalRates();
-    setExternalRates(defaults);
-  };
-
   if (!hotel) {
     return (
       <div className="flex items-center justify-center min-h-[40vh] text-gray-500">
@@ -146,10 +141,6 @@ export function CostComparison() {
               </div>
             ))}
           </div>
-          <Button variant="outline" onClick={handleResetDefaults} className="gap-2">
-            <RotateCcw className="w-4 h-4" />
-            Reset to Sydney 2026 defaults
-          </Button>
         </CardContent>
       </Card>
 
