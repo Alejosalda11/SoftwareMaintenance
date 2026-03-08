@@ -103,7 +103,7 @@ function rowToPreventive(r: Record<string, unknown>): PreventiveMaintenance {
 
 const HOTELS_SELECT = 'id, name, address, total_rooms, color, image';
 const PROFILES_SELECT = 'id, name, role, phone, email, color, avatar, can_delete';
-const DAMAGES_SELECT = 'id, hotel_id, room_number, category, description, status, priority, reported_date, completed_date, cost, materials, items_used, notes, reported_by, assigned_to, images, last_edited_at, hours_spent';
+const DAMAGES_SELECT = 'id, hotel_id, room_number, category, description, status, priority, reported_date, completed_date, cost, materials, notes, reported_by, assigned_to, images, last_edited_at, hours_spent';
 const ROOMS_SELECT = 'hotel_id, number, floor, type, status';
 const PREVENTIVE_SELECT = 'id, hotel_id, room_number, category, title, description, frequency, next_due_date, last_completed_date, assigned_to, status';
 
