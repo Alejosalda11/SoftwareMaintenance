@@ -1450,6 +1450,9 @@ export async function initializeData(): Promise<void> {
             api.fetchRooms(hotelId),
             api.fetchPreventive(hotelId),
           ]);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Damages loaded:', damages.length, 'for hotel', hotelId);
+          }
           damagesCache[hotelId] = damages;
           roomsCache[hotelId] = rooms;
           preventiveCache[hotelId] = preventive;

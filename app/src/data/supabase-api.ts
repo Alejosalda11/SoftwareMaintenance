@@ -27,6 +27,21 @@ function rowToUser(r: Record<string, unknown>): User {
   };
 }
 
+function normalizePriority(p: unknown): Damage['priority'] {
+  const s = String(p ?? '').toLowerCase();
+  if (s === 'med') return 'medium';
+  if (s === 'urge') return 'urgent';
+  if (s === 'low' || s === 'medium' || s === 'high' || s === 'urgent') return s;
+  return 'medium';
+}
+
+function normalizeStatus(s: unknown): Damage['status'] {
+  const v = String(s ?? '').toLowerCase();
+  if (v === 'pending' || v === 'in-progress' || v === 'completed' || v === 'cancelled') return v;
+  if (v === 'in progress') return 'in-progress';
+  return 'pending';
+}
+
 function rowToDamage(r: Record<string, unknown>): Damage {
   return {
     id: r.id as string,
@@ -34,8 +49,8 @@ function rowToDamage(r: Record<string, unknown>): Damage {
     roomNumber: r.room_number as string,
     category: r.category as Damage['category'],
     description: r.description as string,
-    status: r.status as Damage['status'],
-    priority: r.priority as Damage['priority'],
+    status: normalizeStatus(r.status),
+    priority: normalizePriority(r.priority),
     reportedDate: r.reported_date as string,
     completedDate: (r.completed_date as string) || undefined,
     cost: Number(r.cost ?? 0),
