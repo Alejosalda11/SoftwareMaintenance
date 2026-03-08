@@ -86,16 +86,22 @@ function rowToPreventive(r: Record<string, unknown>): PreventiveMaintenance {
   };
 }
 
+const HOTELS_SELECT = 'id, name, address, total_rooms, color, image';
+const PROFILES_SELECT = 'id, name, role, phone, email, color, avatar, can_delete';
+const DAMAGES_SELECT = 'id, hotel_id, room_number, category, description, status, priority, reported_date, completed_date, cost, materials, items_used, notes, reported_by, assigned_to, images, last_edited_at, hours_spent';
+const ROOMS_SELECT = 'hotel_id, number, floor, type, status';
+const PREVENTIVE_SELECT = 'id, hotel_id, room_number, category, title, description, frequency, next_due_date, last_completed_date, assigned_to, status';
+
 export async function fetchHotels(): Promise<Hotel[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase.from('hotels').select('*').order('name');
+  const { data, error } = await supabase.from('hotels').select(HOTELS_SELECT).order('name');
   if (error) throw error;
   return (data ?? []).map(rowToHotel);
 }
 
 export async function fetchProfiles(): Promise<User[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase.from('profiles').select('*').order('name');
+  const { data, error } = await supabase.from('profiles').select(PROFILES_SELECT).order('name');
   if (error) throw error;
   return (data ?? []).map(rowToUser);
 }
@@ -104,7 +110,7 @@ export async function fetchDamages(hotelId: string): Promise<Damage[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('damages')
-    .select('*')
+    .select(DAMAGES_SELECT)
     .eq('hotel_id', hotelId)
     .order('reported_date', { ascending: false });
   if (error) throw error;
@@ -115,7 +121,7 @@ export async function fetchRooms(hotelId: string): Promise<Room[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('rooms')
-    .select('*')
+    .select(ROOMS_SELECT)
     .eq('hotel_id', hotelId)
     .order('number');
   if (error) throw error;
@@ -126,7 +132,7 @@ export async function fetchPreventive(hotelId: string): Promise<PreventiveMainte
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('preventive_maintenance')
-    .select('*')
+    .select(PREVENTIVE_SELECT)
     .eq('hotel_id', hotelId)
     .order('next_due_date');
   if (error) throw error;
@@ -136,7 +142,7 @@ export async function fetchPreventive(hotelId: string): Promise<PreventiveMainte
 
 export async function fetchHotelById(id: string): Promise<Hotel | null> {
   if (!supabase) return null;
-  const { data, error } = await supabase.from('hotels').select('*').eq('id', id).single();
+  const { data, error } = await supabase.from('hotels').select(HOTELS_SELECT).eq('id', id).single();
   if (error || !data) return null;
   return rowToHotel(data as Record<string, unknown>);
 }

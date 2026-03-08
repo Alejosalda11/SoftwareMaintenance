@@ -25,17 +25,13 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [isMobile, setIsMobile] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (isSupabaseAuth()) await initAuth();
       if (cancelled) return;
-      await initializeData();
-      if (!isAuthenticated()) {
-        setAppState('login');
-        return;
-      }
       let savedUser = getCurrentUser();
       if (isSupabaseAuth() && !savedUser) {
         const uid = getSupabaseUserId();
@@ -44,14 +40,23 @@ function App() {
           if (profile) {
             setCurrentUser(profile);
             savedUser = profile;
-            await initializeData();
           }
         }
       }
+      if (cancelled) return;
+      await initializeData();
+      if (cancelled) return;
+      if (!isAuthenticated()) {
+        setAppState('login');
+        setIsInitializing(false);
+        return;
+      }
+      const user = getCurrentUser();
       const savedHotel = getCurrentHotel();
-      if (savedUser && savedHotel) setAppState('main');
-      else if (savedUser) setAppState('hotel-selection');
+      if (user && savedHotel) setAppState('main');
+      else if (user) setAppState('hotel-selection');
       else setAppState('user-selection');
+      setIsInitializing(false);
     })();
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -95,6 +100,14 @@ function App() {
   };
 
   const renderContent = () => {
+    if (isInitializing) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 gap-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600" aria-hidden />
+          <p className="text-sm text-gray-600">Loading...</p>
+        </div>
+      );
+    }
     switch (appState) {
       case 'login':
         return (

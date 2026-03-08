@@ -1442,7 +1442,7 @@ export async function initializeData(): Promise<void> {
       usersCache = profiles;
       const hotelId = sessionStorage.getItem(CURRENT_HOTEL_KEY);
       if (hotelId) {
-        const hotel = await api.fetchHotelById(hotelId);
+        const hotel = hotels.find((h) => h.id === hotelId);
         if (hotel) {
           currentHotelCache = hotel;
           const [damages, rooms, preventive] = await Promise.all([
