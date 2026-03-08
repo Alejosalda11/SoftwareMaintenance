@@ -121,13 +121,17 @@ export async function fetchProfiles(): Promise<User[]> {
   return (data ?? []).map(rowToUser);
 }
 
+/** Max rows per hotel to avoid statement timeout (57014) when indexes are missing. */
+const DAMAGES_FETCH_LIMIT = 2000;
+
 export async function fetchDamages(hotelId: string): Promise<Damage[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('damages')
     .select(DAMAGES_SELECT)
     .eq('hotel_id', hotelId)
-    .order('reported_date', { ascending: false });
+    .order('reported_date', { ascending: false })
+    .limit(DAMAGES_FETCH_LIMIT);
   if (error) throw error;
   return (data ?? []).map(rowToDamage);
 }
