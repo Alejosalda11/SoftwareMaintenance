@@ -1,6 +1,6 @@
 // Hotel Maintenance Pro - Main App Component
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { initializeData, getCurrentUser, setCurrentUser, getCurrentHotel, subscribe } from '@/data/store';
 import { UserSelection } from '@/components/UserSelection';
 import { Login } from '@/components/Login';
@@ -15,6 +15,7 @@ import { PreventiveSchedule } from '@/pages/PreventiveSchedule';
 import { CostComparison } from '@/pages/CostComparison';
 import { MobileNav } from '@/components/MobileNav';
 import { Header } from '@/components/Header';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { Toaster } from '@/components/ui/sonner';
 
 type Page = 'dashboard' | 'damages' | 'history' | 'reports' | 'preventive' | 'comparison';
@@ -99,6 +100,11 @@ function App() {
     }
   };
 
+  const handlePullRefresh = useCallback(async () => {
+    await initializeData();
+    setRefresh((r) => r + 1);
+  }, []);
+
   const renderContent = () => {
     if (isInitializing) {
       return (
@@ -149,13 +155,13 @@ function App() {
               onSwitchHotel={handleSwitchHotel}
               onAdminSettings={handleAdminSettings}
             />
-            
-            <main className={`${isMobile ? 'pb-20' : 'pl-64'} pt-16 min-h-screen`}>
-              <div className="p-4 md:p-6 max-w-7xl mx-auto">
-                {renderPage()}
-              </div>
-            </main>
-            
+            <PullToRefresh onRefresh={handlePullRefresh}>
+              <main className={`${isMobile ? 'pb-20' : 'pl-64'} pt-16 min-h-screen`}>
+                <div className="p-4 md:p-6 max-w-7xl mx-auto">
+                  {renderPage()}
+                </div>
+              </main>
+            </PullToRefresh>
             {isMobile && (
               <MobileNav currentPage={currentPage} onPageChange={setCurrentPage} />
             )}
