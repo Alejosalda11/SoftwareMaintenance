@@ -121,8 +121,8 @@ export async function fetchProfiles(): Promise<User[]> {
   return (data ?? []).map(rowToUser);
 }
 
-/** Max rows per hotel to avoid statement timeout (57014) when indexes are missing. */
-const DAMAGES_FETCH_LIMIT = 2000;
+/** Max rows per hotel to avoid statement timeout (57014) on Supabase. */
+const DAMAGES_FETCH_LIMIT = 500;
 
 export async function fetchDamages(hotelId: string): Promise<Damage[]> {
   if (!supabase) return [];
@@ -136,16 +136,21 @@ export async function fetchDamages(hotelId: string): Promise<Damage[]> {
   return (data ?? []).map(rowToDamage);
 }
 
+const ROOMS_FETCH_LIMIT = 1000;
+
 export async function fetchRooms(hotelId: string): Promise<Room[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('rooms')
     .select(ROOMS_SELECT)
     .eq('hotel_id', hotelId)
-    .order('number');
+    .order('number')
+    .limit(ROOMS_FETCH_LIMIT);
   if (error) throw error;
   return (data ?? []).map(rowToRoom);
 }
+
+const PREVENTIVE_FETCH_LIMIT = 500;
 
 export async function fetchPreventive(hotelId: string): Promise<PreventiveMaintenance[]> {
   if (!supabase) return [];
@@ -153,7 +158,8 @@ export async function fetchPreventive(hotelId: string): Promise<PreventiveMainte
     .from('preventive_maintenance')
     .select(PREVENTIVE_SELECT)
     .eq('hotel_id', hotelId)
-    .order('next_due_date');
+    .order('next_due_date')
+    .limit(PREVENTIVE_FETCH_LIMIT);
   if (error) throw error;
   const rows = (data ?? []) as Record<string, unknown>[];
   return rows.map(rowToPreventive);
