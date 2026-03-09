@@ -144,11 +144,14 @@ export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProp
       </div>
 
       {/* Hotel dropdown + Access button */}
-      <div className="w-full max-w-md space-y-4">
+      <div className="w-full max-w-lg space-y-4">
         <Select value={selectedHotelId} onValueChange={setSelectedHotelId}>
-          <SelectTrigger className="w-full h-20 px-4 text-base bg-white border-2 border-gray-200 hover:border-blue-300 shadow-sm rounded-xl">
+          <SelectTrigger
+            className="w-full h-20 pl-6 pr-5 text-base bg-white border-2 border-gray-200 hover:border-blue-300 shadow-sm rounded-xl cursor-pointer"
+            title={selectedHotel ? "Clic para cambiar de hotel" : undefined}
+          >
             {selectedHotel ? (
-              <span className="flex items-center gap-3 flex-1 min-w-0">
+              <span className="flex items-center gap-4 flex-1 min-w-0">
                 {renderHotelThumb(selectedHotel, 'md')}
                 <span className="font-medium truncate">{selectedHotel.name}</span>
               </span>
