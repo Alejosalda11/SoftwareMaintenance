@@ -121,8 +121,8 @@ export async function fetchProfiles(): Promise<User[]> {
   return (data ?? []).map(rowToUser);
 }
 
-/** Max rows per hotel to avoid statement timeout (57014) on Supabase. */
-const DAMAGES_FETCH_LIMIT = 500;
+/** Max rows per hotel to avoid statement timeout (57014) on Supabase. Raise after adding index on (hotel_id, reported_date DESC). */
+const DAMAGES_FETCH_LIMIT = 100;
 
 export async function fetchDamages(hotelId: string): Promise<Damage[]> {
   if (!supabase) return [];
