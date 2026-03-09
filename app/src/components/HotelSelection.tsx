@@ -1,7 +1,7 @@
 // Hotel Maintenance Pro - Hotel Selection Screen
 
 import { useEffect, useState } from 'react';
-import { LogOut, LogIn } from 'lucide-react';
+import { LogOut, LogIn, Hotel as HotelIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getHotels, setCurrentHotel, getCurrentUser, logout } from '@/data/store';
@@ -68,6 +68,28 @@ export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProp
     onLogout();
   };
 
+  const renderHotelThumb = (hotel: Hotel, size: 'sm' | 'md' = 'md') => {
+    const sizeClass = size === 'sm' ? 'w-8 h-8' : 'w-10 h-10';
+    const iconSize = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
+    if (hotel.image) {
+      return (
+        <img
+          src={hotel.image}
+          alt=""
+          className={`${sizeClass} rounded-lg object-cover flex-shrink-0`}
+        />
+      );
+    }
+    return (
+      <div
+        className={`${sizeClass} rounded-lg flex items-center justify-center flex-shrink-0`}
+        style={{ backgroundColor: `${hotel.color}20` }}
+      >
+        <HotelIcon className={iconSize} style={{ color: hotel.color }} />
+      </div>
+    );
+  };
+
   const getRoleBadge = () => {
     if (userRole === 'superadmin') {
       return (
@@ -124,16 +146,30 @@ export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProp
       {/* Hotel dropdown + Access button */}
       <div className="w-full max-w-md space-y-4">
         <Select value={selectedHotelId} onValueChange={setSelectedHotelId}>
-          <SelectTrigger className="w-full h-12 text-base bg-white border-2 border-gray-200 hover:border-blue-300">
-            <SelectValue placeholder="Elige un hotel..." />
+          <SelectTrigger className="w-full h-14 px-4 text-base bg-white border-2 border-gray-200 hover:border-blue-300 shadow-sm rounded-xl">
+            {selectedHotel ? (
+              <span className="flex items-center gap-3 flex-1 min-w-0">
+                {renderHotelThumb(selectedHotel, 'md')}
+                <span className="font-medium truncate">{selectedHotel.name}</span>
+              </span>
+            ) : (
+              <SelectValue placeholder="Elige un hotel..." />
+            )}
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-xl border-2 shadow-lg p-1.5 min-w-[var(--radix-select-trigger-width)]">
             {hotels.map((hotel) => (
-              <SelectItem key={hotel.id} value={hotel.id} className="py-3">
-                <span className="font-medium">{hotel.name}</span>
-                {hotel.address ? (
-                  <span className="block text-xs text-gray-500 truncate">{hotel.address}</span>
-                ) : null}
+              <SelectItem
+                key={hotel.id}
+                value={hotel.id}
+                className="py-3 px-3 rounded-lg gap-3 cursor-pointer"
+              >
+                {renderHotelThumb(hotel, 'sm')}
+                <span className="flex flex-col min-w-0">
+                  <span className="font-medium">{hotel.name}</span>
+                  {hotel.address ? (
+                    <span className="text-xs text-gray-500 truncate">{hotel.address}</span>
+                  ) : null}
+                </span>
               </SelectItem>
             ))}
           </SelectContent>
