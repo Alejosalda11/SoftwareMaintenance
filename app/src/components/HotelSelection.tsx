@@ -1,12 +1,18 @@
 // Hotel Maintenance Pro - Hotel Selection Screen
 
 import { useEffect, useState } from 'react';
-import { MapPin, LogOut, Hotel as HotelIcon } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { LogOut, Hotel as HotelIcon, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getHotels, setCurrentHotel, getCurrentUser, logout } from '@/data/store';
 import type { Hotel } from '@/types';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,9 +31,11 @@ interface HotelSelectionProps {
 
 export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProps) {
   const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [selectedHotelId, setSelectedHotelId] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<string>('');
   const [userRole, setUserRole] = useState<string>('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const allHotels = getHotels();
@@ -40,9 +48,17 @@ export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProp
     }
   }, []);
 
-  const handleSelectHotel = async (hotel: Hotel) => {
-    await setCurrentHotel(hotel);
-    onHotelSelected();
+  const selectedHotel = hotels.find((h) => h.id === selectedHotelId);
+
+  const handleAccess = async () => {
+    if (!selectedHotel) return;
+    setIsLoading(true);
+    try {
+      await setCurrentHotel(selectedHotel);
+      onHotelSelected();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLogoutClick = () => setShowLogoutConfirm(true);
@@ -105,51 +121,36 @@ export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProp
         <p className="text-gray-600 mt-3">Which hotel are you working at today?</p>
       </div>
 
-      {/* Hotel Cards */}
-      <div className="w-full max-w-md space-y-3">
-        {hotels.map((hotel) => (
-          <Card
-            key={hotel.id}
-            className="cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] border-2 border-transparent hover:border-blue-300"
-            onClick={() => handleSelectHotel(hotel)}
+      {/* Hotel dropdown + Access button */}
+      <div className="w-full max-w-md space-y-4">
+        <Select value={selectedHotelId} onValueChange={setSelectedHotelId}>
+          <SelectTrigger className="w-full h-12 text-base bg-white border-2 border-gray-200 hover:border-blue-300">
+            <SelectValue placeholder="Elige un hotel..." />
+          </SelectTrigger>
+          <SelectContent>
+            {hotels.map((hotel) => (
+              <SelectItem key={hotel.id} value={hotel.id} className="py-3">
+                <span className="font-medium">{hotel.name}</span>
+                {hotel.address ? (
+                  <span className="block text-xs text-gray-500 truncate">{hotel.address}</span>
+                ) : null}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {hotels.length === 0 ? (
+          <p className="text-sm text-amber-600 text-center">No hay hoteles disponibles.</p>
+        ) : (
+          <Button
+            className="w-full h-12 text-base gap-2"
+            size="lg"
+            onClick={handleAccess}
+            disabled={!selectedHotel || isLoading}
           >
-            <CardContent className="p-4">
-              <div className="flex items-start gap-4">
-                {hotel.image ? (
-                  <img 
-                    src={hotel.image} 
-                    alt={hotel.name}
-                    className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
-                  />
-                ) : (
-                  <div
-                    className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: `${hotel.color}20` }}
-                  >
-                    <HotelIcon className="w-8 h-8" style={{ color: hotel.color }} />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-lg text-gray-900 truncate">
-                    {hotel.name}
-                  </h3>
-                  <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
-                    <MapPin className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{hotel.address}</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="secondary">{hotel.totalRooms} rooms</Badge>
-                    <div 
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: hotel.color }}
-                      title="Hotel brand color"
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+            <LogIn className="w-5 h-5" />
+            {isLoading ? 'Entrando...' : 'Acceder'}
+          </Button>
+        )}
       </div>
 
       {/* Info */}
