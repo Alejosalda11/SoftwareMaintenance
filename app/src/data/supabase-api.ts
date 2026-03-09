@@ -104,6 +104,8 @@ function rowToPreventive(r: Record<string, unknown>): PreventiveMaintenance {
 const HOTELS_SELECT = 'id, name, address, total_rooms, color, image';
 const PROFILES_SELECT = 'id, name, role, phone, email, color, avatar, can_delete';
 const DAMAGES_SELECT = 'id, hotel_id, room_number, category, description, status, priority, reported_date, completed_date, cost, materials, notes, reported_by, assigned_to, images, updated_at';
+/** List fetch omits images to avoid timeout (heavy JSONB). Use fetchDamageById for detail. */
+const DAMAGES_SELECT_LIST = 'id, hotel_id, room_number, category, description, status, priority, reported_date, completed_date, cost, materials, notes, reported_by, assigned_to, updated_at';
 const ROOMS_SELECT = 'hotel_id, number, floor, type, status';
 const PREVENTIVE_SELECT = 'id, hotel_id, room_number, category, title, description, frequency, next_due_date, last_completed_date, assigned_to, status';
 
@@ -128,12 +130,23 @@ export async function fetchDamages(hotelId: string): Promise<Damage[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('damages')
-    .select(DAMAGES_SELECT)
+    .select(DAMAGES_SELECT_LIST)
     .eq('hotel_id', hotelId)
     .order('reported_date', { ascending: false })
     .limit(DAMAGES_FETCH_LIMIT);
   if (error) throw error;
   return (data ?? []).map(rowToDamage);
+}
+
+export async function fetchDamageById(id: string): Promise<Damage | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('damages')
+    .select(DAMAGES_SELECT)
+    .eq('id', id)
+    .single();
+  if (error || !data) return null;
+  return rowToDamage(data as Record<string, unknown>);
 }
 
 const ROOMS_FETCH_LIMIT = 1000;

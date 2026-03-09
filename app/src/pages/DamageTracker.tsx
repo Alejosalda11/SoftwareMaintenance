@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { getDamages, addDamage, updateDamage, deleteDamage, getCurrentHotel, getCurrentUser, getUsers } from '@/data/store';
+import { fetchDamageById } from '@/data/supabase-api';
 import type { Damage, DamageStatus, DamagePriority, DamageCategory, Hotel, RepairImage, RepairItem } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
@@ -46,6 +47,7 @@ export function DamageTracker() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingDamage, setEditingDamage] = useState<Damage | null>(null);
   const [selectedDamage, setSelectedDamage] = useState<Damage | null>(null);
+  const [detailDamage, setDetailDamage] = useState<Damage | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -70,6 +72,18 @@ export function DamageTracker() {
       loadHotelData(currentHotel.id);
     }
   }, []);
+
+  useEffect(() => {
+    if (!selectedDamage) {
+      setDetailDamage(null);
+      return;
+    }
+    let cancelled = false;
+    fetchDamageById(selectedDamage.id).then((full) => {
+      if (!cancelled && full) setDetailDamage(full);
+    });
+    return () => { cancelled = true; };
+  }, [selectedDamage?.id]);
 
   const loadHotelData = (hotelId: string) => {
     const allDamages = getDamages(hotelId);
@@ -634,81 +648,83 @@ export function DamageTracker() {
       {/* Detail Modal */}
       <Dialog open={selectedDamage !== null} onOpenChange={(open) => !open && setSelectedDamage(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          {selectedDamage && (
+          {selectedDamage && (() => {
+            const d = detailDamage ?? selectedDamage;
+            return (
             <>
               <DialogHeader>
-                <DialogTitle>Room {selectedDamage.roomNumber} – {selectedDamage.category}</DialogTitle>
+                <DialogTitle>Room {d.roomNumber} – {d.category}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Badge className={getStatusColor(selectedDamage.status)}>
-                    {selectedDamage.status}
+                  <Badge className={getStatusColor(d.status)}>
+                    {d.status}
                   </Badge>
                   <Badge variant="outline" className="capitalize">
-                    {selectedDamage.priority}
+                    {d.priority}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Wrench className="w-4 h-4" />
-                  <span className="capitalize">{selectedDamage.category}</span>
+                  <span className="capitalize">{d.category}</span>
                 </div>
-                <p className="text-gray-800">{selectedDamage.description}</p>
-                {selectedDamage.notes && (
-                  <p className="text-sm text-gray-500 italic">{selectedDamage.notes}</p>
+                <p className="text-gray-800">{d.description}</p>
+                {d.notes && (
+                  <p className="text-sm text-gray-500 italic">{d.notes}</p>
                 )}
-                {selectedDamage.images && selectedDamage.images.length > 0 && (
-                  <ImageGallery images={selectedDamage.images} damageId={selectedDamage.id} />
+                {d.images && d.images.length > 0 && (
+                  <ImageGallery images={d.images} damageId={d.id} />
                 )}
                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                   <span className="flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
-                    Reported: {format(parseISO(selectedDamage.reportedDate), 'MMM d, yyyy')}
+                    Reported: {format(parseISO(d.reportedDate), 'MMM d, yyyy')}
                   </span>
-                  {selectedDamage.completedDate && (
+                  {d.completedDate && (
                     <span className="flex items-center gap-1 text-green-600">
                       <CheckCircle className="w-4 h-4" />
-                      Completed: {format(parseISO(selectedDamage.completedDate), 'MMM d, yyyy')}
+                      Completed: {format(parseISO(d.completedDate), 'MMM d, yyyy')}
                     </span>
                   )}
-                  {selectedDamage.assignedTo && (
+                  {d.assignedTo && (
                     <span className="flex items-center gap-1">
                       <User className="w-4 h-4" />
-                      {selectedDamage.assignedTo}
+                      {d.assignedTo}
                     </span>
                   )}
-                  {selectedDamage.lastEditedAt && (
+                  {d.lastEditedAt && (
                     <span className="flex items-center gap-1 text-gray-500">
                       <Calendar className="w-4 h-4" />
-                      Last edited: {format(parseISO(selectedDamage.lastEditedAt), 'MMM d, yyyy HH:mm')}
+                      Last edited: {format(parseISO(d.lastEditedAt), 'MMM d, yyyy HH:mm')}
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-1 text-lg font-semibold">
                   <DollarSign className="w-5 h-5" />
-                  {formatCurrency(selectedDamage.cost)}
+                  {formatCurrency(d.cost)}
                 </div>
-                {(selectedDamage.hoursSpent != null && selectedDamage.hoursSpent > 0) && (
+                {(d.hoursSpent != null && d.hoursSpent > 0) && (
                   <div className="text-sm text-gray-600">
-                    Hours spent: {selectedDamage.hoursSpent} h
-                    {selectedDamage.cost != null && (
+                    Hours spent: {d.hoursSpent} h
+                    {d.cost != null && (
                       <span className="ml-2">
-                        Effective rate: {formatCurrency(selectedDamage.cost / selectedDamage.hoursSpent)}/h
+                        Effective rate: {formatCurrency(d.cost / d.hoursSpent)}/h
                       </span>
                     )}
                   </div>
                 )}
-                {(selectedDamage.itemsUsed && selectedDamage.itemsUsed.length > 0) ? (
+                {(d.itemsUsed && d.itemsUsed.length > 0) ? (
                   <div className="flex flex-wrap gap-1">
-                    {selectedDamage.itemsUsed.map((item, idx) => (
+                    {d.itemsUsed.map((item, idx) => (
                       <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
                         {item.brand ? `${item.name} (${item.brand})` : item.name}
                         {item.estimatedCost != null ? ` — ${formatCurrency(item.estimatedCost)}` : ''}
                       </span>
                     ))}
                   </div>
-                ) : selectedDamage.materials.length > 0 ? (
+                ) : d.materials.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
-                    {selectedDamage.materials.map((material, idx) => (
+                    {d.materials.map((material, idx) => (
                       <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
                         {material}
                       </span>
@@ -717,7 +733,7 @@ export function DamageTracker() {
                 ) : null}
               </div>
             </>
-          )}
+            ); })()}
         </DialogContent>
       </Dialog>
     </div>
