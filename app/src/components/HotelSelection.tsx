@@ -1,7 +1,7 @@
 // Hotel Maintenance Pro - Hotel Selection Screen
 
 import { useEffect, useState } from 'react';
-import { LogOut, Hotel as HotelIcon, LogIn } from 'lucide-react';
+import { LogOut, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getHotels, setCurrentHotel, getCurrentUser, logout } from '@/data/store';
