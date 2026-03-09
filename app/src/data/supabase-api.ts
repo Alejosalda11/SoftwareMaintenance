@@ -70,7 +70,7 @@ function rowToDamage(r: Record<string, unknown>): Damage {
           };
         })
       : [],
-    lastEditedAt: (r.last_edited_at as string) || undefined,
+    lastEditedAt: (r.updated_at as string) || (r.last_edited_at as string) || undefined,
     hoursSpent: r.hours_spent != null ? Number(r.hours_spent) : undefined,
   };
 }
@@ -103,7 +103,7 @@ function rowToPreventive(r: Record<string, unknown>): PreventiveMaintenance {
 
 const HOTELS_SELECT = 'id, name, address, total_rooms, color, image';
 const PROFILES_SELECT = 'id, name, role, phone, email, color, avatar, can_delete';
-const DAMAGES_SELECT = 'id, hotel_id, room_number, category, description, status, priority, reported_date, completed_date, cost, materials, notes, reported_by, assigned_to, images, last_edited_at, hours_spent';
+const DAMAGES_SELECT = 'id, hotel_id, room_number, category, description, status, priority, reported_date, completed_date, cost, materials, notes, reported_by, assigned_to, images, updated_at';
 const ROOMS_SELECT = 'hotel_id, number, floor, type, status';
 const PREVENTIVE_SELECT = 'id, hotel_id, room_number, category, title, description, frequency, next_due_date, last_completed_date, assigned_to, status';
 
@@ -184,8 +184,7 @@ function damageToRow(d: Partial<Damage>): Record<string, unknown> {
   if (d.reportedBy != null) row.reported_by = d.reportedBy;
   if (d.assignedTo != null) row.assigned_to = d.assignedTo;
   if (d.images != null) row.images = d.images;
-  if (d.lastEditedAt != null) row.last_edited_at = d.lastEditedAt;
-  if (d.hoursSpent != null) row.hours_spent = d.hoursSpent;
+  if (d.lastEditedAt != null) row.updated_at = d.lastEditedAt;
   return row;
 }
 
