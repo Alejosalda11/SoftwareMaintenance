@@ -4,7 +4,69 @@ import { useState, useRef } from 'react';
 import { X, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { SafeImage } from '@/components/SafeImage';
+import { toast } from 'sonner';
 import type { RepairImage } from '@/types';
+
+const MAX_FILE_SIZE_BYTES = 2.5 * 1024 * 1024; // 2.5 MB
+const MAX_DIMENSION = 1600;
+const JPEG_QUALITY = 0.82;
+
+/** Resize/compress image to avoid huge base64 and app crashes. Returns data URL. */
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (file.size <= 0) {
+      reject(new Error('Empty file'));
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      let tw = w;
+      let th = h;
+      if (w > MAX_DIMENSION || h > MAX_DIMENSION) {
+        if (w >= h) {
+          tw = MAX_DIMENSION;
+          th = Math.round((h * MAX_DIMENSION) / w);
+        } else {
+          th = MAX_DIMENSION;
+          tw = Math.round((w * MAX_DIMENSION) / h);
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = tw;
+      canvas.height = th;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas not available'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, tw, th);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('Failed to compress'));
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        },
+        'image/jpeg',
+        JPEG_QUALITY
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load image'));
+    };
+    img.src = url;
+  });
+}
 
 interface ImageUploadProps {
   images: RepairImage[];
@@ -17,15 +79,6 @@ export function ImageUpload({ images, onChange, maxImages = 10 }: ImageUploadPro
   const [defaultNewType, setDefaultNewType] = useState<'before' | 'after'>('before');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const convertFileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleFiles = async (files: FileList | null) => {
     if (!files) return;
     
@@ -34,17 +87,21 @@ export function ImageUpload({ images, onChange, maxImages = 10 }: ImageUploadPro
     
     for (let i = 0; i < Math.min(files.length, remainingSlots); i++) {
       const file = files[i];
-      if (file.type.startsWith('image/')) {
-        try {
-          const base64 = await convertFileToBase64(file);
-          newImages.push({
-            type: defaultNewType,
-            url: base64,
-            uploadedAt: new Date().toISOString()
-          });
-        } catch (error) {
-          console.error('Error converting image:', error);
-        }
+      if (!file.type.startsWith('image/')) continue;
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        toast.error(`"${file.name}" is too large (max 2.5 MB). Skipped.`);
+        continue;
+      }
+      try {
+        const dataUrl = await compressImage(file);
+        newImages.push({
+          type: defaultNewType,
+          url: dataUrl,
+          uploadedAt: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('Error processing image:', error);
+        toast.error(`Could not process "${file.name}". Skipped.`);
       }
     }
     
@@ -168,7 +225,7 @@ export function ImageUpload({ images, onChange, maxImages = 10 }: ImageUploadPro
             </button>
           </p>
           <p className="text-xs text-gray-500">
-            Supports JPG, PNG, GIF (max {maxImages} images)
+            JPG, PNG, GIF — max {maxImages} images, 2.5 MB each
           </p>
         </div>
       )}
@@ -178,10 +235,11 @@ export function ImageUpload({ images, onChange, maxImages = 10 }: ImageUploadPro
           {images.map((image, index) => (
             <div key={index} className="relative group">
               <div className="aspect-square rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-100">
-                <img
+                <SafeImage
                   src={image.url}
                   alt={`${image.type} ${index + 1}`}
                   className="w-full h-full object-cover"
+                  loading="eager"
                 />
               </div>
               <div className="absolute top-1 left-1">

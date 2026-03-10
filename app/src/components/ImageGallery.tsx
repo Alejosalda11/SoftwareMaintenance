@@ -5,6 +5,7 @@ import { X, ZoomIn, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { SafeImage } from '@/components/SafeImage';
 import type { RepairImage } from '@/types';
 
 interface ImageGalleryProps {
@@ -74,10 +75,11 @@ export function ImageGallery({ images }: ImageGalleryProps) {
                     className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 cursor-pointer hover:border-blue-500 transition-colors group"
                     onClick={() => openViewer(globalIndex)}
                   >
-                    <img
+                    <SafeImage
                       src={image.url}
                       alt={`Before ${index + 1}`}
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity flex items-center justify-center">
                       <ZoomIn className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -104,10 +106,11 @@ export function ImageGallery({ images }: ImageGalleryProps) {
                     className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 cursor-pointer hover:border-blue-500 transition-colors group"
                     onClick={() => openViewer(globalIndex)}
                   >
-                    <img
+                    <SafeImage
                       src={image.url}
                       alt={`After ${index + 1}`}
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity flex items-center justify-center">
                       <ZoomIn className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -156,10 +159,11 @@ export function ImageGallery({ images }: ImageGalleryProps) {
               )}
               
               <div className="relative w-full h-[80vh] bg-black flex items-center justify-center">
-                <img
+                <SafeImage
                   src={normalizedImages[selectedImageIndex].url}
                   alt={`Image ${selectedImageIndex + 1}`}
                   className="max-w-full max-h-full object-contain"
+                  loading="eager"
                 />
               </div>
               
