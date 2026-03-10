@@ -44,17 +44,6 @@ export function MaintenanceHistory() {
   const requestedDetailIds = useRef<Set<string>>(new Set());
   const itemsPerPage = 10;
 
-  // Load full damage (with images) for the current page so cards can show thumbnails
-  useEffect(() => {
-    paginatedDamages.forEach((d) => {
-      if (requestedDetailIds.current.has(d.id)) return;
-      requestedDetailIds.current.add(d.id);
-      fetchDamageById(d.id).then((full) => {
-        if (full) setDetailsCache((prev) => ({ ...prev, [d.id]: full }));
-      });
-    });
-  }, [currentPage, filterCategory, filterMonth, searchTerm, filteredDamages.length]);
-
   useEffect(() => {
     if (!selectedDamage) {
       setDetailDamage(null);
@@ -128,6 +117,17 @@ export function MaintenanceHistory() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  // Load full damage (with images) for the current page so cards can show thumbnails
+  useEffect(() => {
+    paginatedDamages.forEach((d) => {
+      if (requestedDetailIds.current.has(d.id)) return;
+      requestedDetailIds.current.add(d.id);
+      fetchDamageById(d.id).then((full) => {
+        if (full) setDetailsCache((prev) => ({ ...prev, [d.id]: full }));
+      });
+    });
+  }, [currentPage, filterCategory, filterMonth, searchTerm, filteredDamages.length]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
