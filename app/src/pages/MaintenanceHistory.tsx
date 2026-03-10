@@ -1,6 +1,6 @@
 // Hotel Maintenance Pro - Maintenance History Page (Hotel-specific)
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Search, 
   Calendar, 
@@ -24,9 +24,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getDamages, getCurrentHotel } from '@/data/store';
 import { fetchDamageById } from '@/data/supabase-api';
-import type { Damage, DamageCategory, Hotel } from '@/types';
+import type { Damage, DamageCategory, Hotel, RepairImage } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { ImageGallery } from '@/components/ImageGallery';
+import { SafeImage } from '@/components/SafeImage';
 
 const categories: DamageCategory[] = ['plumbing', 'electrical', 'furniture', 'appliances', 'structural', 'hvac', 'painting', 'cleaning', 'other'];
 
@@ -39,16 +40,37 @@ export function MaintenanceHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDamage, setSelectedDamage] = useState<Damage | null>(null);
   const [detailDamage, setDetailDamage] = useState<Damage | null>(null);
+  const [detailsCache, setDetailsCache] = useState<Record<string, Damage>>({});
+  const requestedDetailIds = useRef<Set<string>>(new Set());
   const itemsPerPage = 10;
+
+  // Load full damage (with images) for the current page so cards can show thumbnails
+  useEffect(() => {
+    paginatedDamages.forEach((d) => {
+      if (requestedDetailIds.current.has(d.id)) return;
+      requestedDetailIds.current.add(d.id);
+      fetchDamageById(d.id).then((full) => {
+        if (full) setDetailsCache((prev) => ({ ...prev, [d.id]: full }));
+      });
+    });
+  }, [currentPage, filterCategory, filterMonth, searchTerm, filteredDamages.length]);
 
   useEffect(() => {
     if (!selectedDamage) {
       setDetailDamage(null);
       return;
     }
+    const cached = detailsCache[selectedDamage.id];
+    if (cached) {
+      setDetailDamage(cached);
+      return;
+    }
     let cancelled = false;
     fetchDamageById(selectedDamage.id).then((full) => {
-      if (!cancelled && full) setDetailDamage(full);
+      if (!cancelled && full) {
+        setDetailDamage(full);
+        setDetailsCache((prev) => ({ ...prev, [full.id]: full }));
+      }
     });
     return () => { cancelled = true; };
   }, [selectedDamage?.id]);
@@ -357,7 +379,14 @@ export function MaintenanceHistory() {
             </CardContent>
           </Card>
         ) : (
-          paginatedDamages.map((damage) => (
+          paginatedDamages.map((damage) => {
+            const displayDamage = detailsCache[damage.id] ?? damage;
+            const imageUrls = !displayDamage.images?.length
+              ? []
+              : typeof displayDamage.images[0] === 'string'
+                ? (displayDamage.images as string[]).slice(0, 4)
+                : (displayDamage.images as RepairImage[]).slice(0, 4).map((img) => img.url);
+            return (
             <Card
               key={damage.id}
               className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
@@ -367,45 +396,59 @@ export function MaintenanceHistory() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap mb-2">
-                      <span className="font-semibold text-lg">Room {damage.roomNumber}</span>
-                      <Badge className={getStatusColor(damage.status)}>
-                        {damage.status}
+                      <span className="font-semibold text-lg">Room {displayDamage.roomNumber}</span>
+                      <Badge className={getStatusColor(displayDamage.status)}>
+                        {displayDamage.status}
                       </Badge>
                       <Badge variant="outline" className="capitalize">
-                        {damage.priority}
+                        {displayDamage.priority}
                       </Badge>
                     </div>
                     
                     <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
                       <Wrench className="w-4 h-4" />
-                      <span className="capitalize">{damage.category}</span>
+                      <span className="capitalize">{displayDamage.category}</span>
                     </div>
                     
-                    <p className="text-gray-800">{damage.description}</p>
+                    <p className="text-gray-800">{displayDamage.description}</p>
                     
-                    {damage.notes && (
-                      <p className="text-sm text-gray-500 mt-1 italic">{damage.notes}</p>
+                    {displayDamage.notes && (
+                      <p className="text-sm text-gray-500 mt-1 italic">{displayDamage.notes}</p>
                     )}
                     
-                    {damage.images && damage.images.length > 0 && (
-                      <ImageGallery images={damage.images} damageId={damage.id} />
+                    {imageUrls.length > 0 && (
+                      <div className="flex gap-1.5 mt-2 flex-wrap">
+                        {imageUrls.map((url, idx) => (
+                          <div
+                            key={idx}
+                            className="w-14 h-14 rounded-md overflow-hidden border border-gray-200 flex-shrink-0"
+                          >
+                            <SafeImage
+                              src={url}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                        ))}
+                      </div>
                     )}
                     
                     <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-500">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
-                        Reported: {format(parseISO(damage.reportedDate), 'MMM d, yyyy')}
+                        Reported: {format(parseISO(displayDamage.reportedDate), 'MMM d, yyyy')}
                       </span>
-                      {damage.completedDate && (
+                      {displayDamage.completedDate && (
                         <span className="flex items-center gap-1 text-green-600">
                           <CheckCircle className="w-4 h-4" />
-                          Completed: {format(parseISO(damage.completedDate), 'MMM d, yyyy')}
+                          Completed: {format(parseISO(displayDamage.completedDate), 'MMM d, yyyy')}
                         </span>
                       )}
-                      {damage.assignedTo && (
+                      {displayDamage.assignedTo && (
                         <span className="flex items-center gap-1">
                           <User className="w-4 h-4" />
-                          {damage.assignedTo}
+                          {displayDamage.assignedTo}
                         </span>
                       )}
                     </div>
@@ -414,11 +457,11 @@ export function MaintenanceHistory() {
                   <div className="flex flex-col items-end gap-2">
                     <div className="flex items-center gap-1 text-lg font-semibold">
                       <DollarSign className="w-5 h-5" />
-                      {formatCurrency(damage.cost)}
+                      {formatCurrency(displayDamage.cost)}
                     </div>
-                    {damage.materials.length > 0 && (
+                    {displayDamage.materials.length > 0 && (
                       <div className="flex flex-wrap gap-1 justify-end max-w-xs">
-                        {damage.materials.map((material, idx) => (
+                        {displayDamage.materials.map((material, idx) => (
                           <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
                             {material}
                           </span>
@@ -429,7 +472,8 @@ export function MaintenanceHistory() {
                 </div>
               </CardContent>
             </Card>
-          ))
+            );
+          })
         )}
       </div>
 

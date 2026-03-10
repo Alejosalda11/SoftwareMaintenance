@@ -1,18 +1,12 @@
 // Hotel Maintenance Pro - Hotel Selection Screen
 
 import { useEffect, useState } from 'react';
-import { LogOut, LogIn, Hotel as HotelIcon } from 'lucide-react';
+import { MapPin, LogOut, Hotel as HotelIcon } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getHotels, setCurrentHotel, getCurrentUser, logout } from '@/data/store';
 import type { Hotel } from '@/types';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,11 +25,9 @@ interface HotelSelectionProps {
 
 export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProps) {
   const [hotels, setHotels] = useState<Hotel[]>([]);
-  const [selectedHotelId, setSelectedHotelId] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<string>('');
   const [userRole, setUserRole] = useState<string>('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const allHotels = getHotels();
@@ -48,17 +40,9 @@ export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProp
     }
   }, []);
 
-  const selectedHotel = hotels.find((h) => h.id === selectedHotelId);
-
-  const handleAccess = async () => {
-    if (!selectedHotel) return;
-    setIsLoading(true);
-    try {
-      await setCurrentHotel(selectedHotel);
-      onHotelSelected();
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSelectHotel = async (hotel: Hotel) => {
+    await setCurrentHotel(hotel);
+    onHotelSelected();
   };
 
   const handleLogoutClick = () => setShowLogoutConfirm(true);
@@ -66,28 +50,6 @@ export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProp
     setShowLogoutConfirm(false);
     logout();
     onLogout();
-  };
-
-  const renderHotelThumb = (hotel: Hotel, size: 'sm' | 'md' = 'md') => {
-    const sizeClass = size === 'sm' ? 'w-8 h-8' : 'w-10 h-10';
-    const iconSize = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
-    if (hotel.image) {
-      return (
-        <img
-          src={hotel.image}
-          alt=""
-          className={`${sizeClass} rounded-lg object-cover flex-shrink-0`}
-        />
-      );
-    }
-    return (
-      <div
-        className={`${sizeClass} rounded-lg flex items-center justify-center flex-shrink-0`}
-        style={{ backgroundColor: `${hotel.color}20` }}
-      >
-        <HotelIcon className={iconSize} style={{ color: hotel.color }} />
-      </div>
-    );
   };
 
   const getRoleBadge = () => {
@@ -143,53 +105,51 @@ export function HotelSelection({ onHotelSelected, onLogout }: HotelSelectionProp
         <p className="text-gray-600 mt-3">Which hotel are you working at today?</p>
       </div>
 
-      {/* Hotel dropdown + Access button */}
-      <div className="w-full max-w-xl space-y-4">
-        <Select value={selectedHotelId} onValueChange={setSelectedHotelId}>
-          <SelectTrigger
-            className="w-full h-20 pl-6 pr-5 text-base bg-white border-2 border-gray-200 hover:border-blue-300 shadow-sm rounded-xl cursor-pointer"
-            title={selectedHotel ? "Clic para cambiar de hotel" : undefined}
+      {/* Hotel Cards */}
+      <div className="w-full max-w-md space-y-3">
+        {hotels.map((hotel) => (
+          <Card
+            key={hotel.id}
+            className="cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] border-2 border-transparent hover:border-blue-300"
+            onClick={() => handleSelectHotel(hotel)}
           >
-            {selectedHotel ? (
-              <span className="flex items-center gap-4 flex-1 min-w-0 pointer-events-none">
-                {renderHotelThumb(selectedHotel, 'md')}
-                <span className="font-medium truncate">{selectedHotel.name}</span>
-              </span>
-            ) : (
-              <SelectValue placeholder="Elige un hotel..." />
-            )}
-          </SelectTrigger>
-          <SelectContent className="rounded-xl border-2 shadow-lg p-1.5 min-w-[var(--radix-select-trigger-width)]">
-            {hotels.map((hotel) => (
-              <SelectItem
-                key={hotel.id}
-                value={hotel.id}
-                className="py-3 px-3 rounded-lg gap-3 cursor-pointer"
-              >
-                {renderHotelThumb(hotel, 'sm')}
-                <span className="flex flex-col min-w-0">
-                  <span className="font-medium">{hotel.name}</span>
-                  {hotel.address ? (
-                    <span className="text-xs text-gray-500 truncate">{hotel.address}</span>
-                  ) : null}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {hotels.length === 0 ? (
-          <p className="text-sm text-amber-600 text-center">No hay hoteles disponibles.</p>
-        ) : (
-          <Button
-            className="w-full h-12 text-base gap-2"
-            size="lg"
-            onClick={handleAccess}
-            disabled={!selectedHotel || isLoading}
-          >
-            <LogIn className="w-5 h-5" />
-            {isLoading ? 'Entrando...' : 'Acceder'}
-          </Button>
-        )}
+            <CardContent className="p-4">
+              <div className="flex items-start gap-4">
+                {hotel.image ? (
+                  <img
+                    src={hotel.image}
+                    alt={hotel.name}
+                    className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div
+                    className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: `${hotel.color}20` }}
+                  >
+                    <HotelIcon className="w-8 h-8" style={{ color: hotel.color }} />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-lg text-gray-900 truncate">
+                    {hotel.name}
+                  </h3>
+                  <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
+                    <MapPin className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate">{hotel.address}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge variant="secondary">{hotel.totalRooms} rooms</Badge>
+                    <div
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: hotel.color }}
+                      title="Hotel brand color"
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Info */}
