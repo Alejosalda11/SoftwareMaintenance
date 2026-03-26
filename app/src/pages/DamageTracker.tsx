@@ -333,7 +333,9 @@ export function DamageTracker() {
               {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
-          
+        </div>
+
+        <div>
           <Dialog
             open={isAddDialogOpen}
             onOpenChange={(open) => {
@@ -345,7 +347,7 @@ export function DamageTracker() {
             }}
           >
             <DialogTrigger asChild>
-              <Button type="button" className="flex-shrink-0">
+              <Button type="button" className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
                 <span className="hidden sm:inline">Add Repair</span>
                 <span className="sm:hidden">Add</span>

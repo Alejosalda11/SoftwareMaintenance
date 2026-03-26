@@ -106,7 +106,7 @@ export function CostComparison() {
           Cost comparison
         </h1>
         <p className="text-sm text-gray-600">
-          External estimated cost is calculated as 40% above internal cost for each repair.
+          External estimated cost is shown alongside your internal maintenance costs.
         </p>
       </div>
 
@@ -160,7 +160,7 @@ export function CostComparison() {
         <CardHeader>
           <CardTitle className="text-lg">Internal vs external (estimated)</CardTitle>
           <p className="text-sm text-gray-500">
-            For the selected period: internal = what you paid; external = internal + 40%; savings = external − internal.
+            For the selected period: internal = what you paid; external = estimated market benchmark; savings = external − internal.
           </p>
         </CardHeader>
         <CardContent>
@@ -171,7 +171,7 @@ export function CostComparison() {
                   <th className="text-left py-2 font-medium">Category</th>
                   <th className="text-right py-2 font-medium">Repairs</th>
                   <th className="text-right py-2 font-medium">Internal (AUD)</th>
-                  <th className="text-right py-2 font-medium">External (+40%, AUD)</th>
+                  <th className="text-right py-2 font-medium">External (AUD)</th>
                   <th className="text-right py-2 font-medium">Savings (AUD)</th>
                 </tr>
               </thead>
@@ -215,7 +215,7 @@ export function CostComparison() {
             </span>
             <span className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-gray-500" />
-              Total external (+40%): <strong>{formatAUD(totalExternal)}</strong>
+              Total external: <strong>{formatAUD(totalExternal)}</strong>
             </span>
             <span className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-green-600" />

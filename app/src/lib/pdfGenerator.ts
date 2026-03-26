@@ -2,7 +2,7 @@
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { Hotel, Damage, CategoryStats, MaintenanceStats, ExternalRates, DamageCategory } from '@/types';
+import type { Hotel, Damage, CategoryStats, MaintenanceStats, DamageCategory } from '@/types';
 import { getAllCategories } from '@/constants/externalRates';
 import { format } from 'date-fns';
 
@@ -18,49 +18,66 @@ interface PDFOptions {
   maintenanceStats: MaintenanceStats;
   dateRange?: { start: string; end: string };
   chartImages?: ChartImageOption[];
-  externalRates?: ExternalRates;
 }
 
 export async function generatePDFReport(options: PDFOptions): Promise<void> {
   const { hotel, damages, categoryStats, maintenanceStats, dateRange, chartImages } = options;
-  
+ 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  let yPos = 20;
+  const marginLeft = 16;
+  const marginRight = 16;
+  const marginTop = 16;
+  const marginBottom = 16;
+  const usableWidth = pageWidth - marginLeft - marginRight;
+  const footerY = pageHeight - 8;
+  let yPos = marginTop;
 
-  // Header
-  doc.setFillColor(hotel.color.replace('#', ''));
-  doc.rect(0, 0, pageWidth, 40, 'F');
-  
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
+  const ensureSpace = (requiredHeight: number) => {
+    if (yPos + requiredHeight > pageHeight - marginBottom - 8) {
+      doc.addPage();
+      yPos = marginTop;
+    }
+  };
+  const toPercent = (value: number, total: number) => (total > 0 ? `${((value / total) * 100).toFixed(1)}%` : '0.0%');
+
+  doc.setDrawColor(229, 231, 235);
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(marginLeft, yPos, usableWidth, 30, 2, 2, 'FD');
+  doc.setFillColor(59, 130, 246);
+  doc.roundedRect(marginLeft + 4, yPos + 5, 4, 20, 1, 1, 'F');
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text(hotel.name, 20, 25);
-  
-  doc.setFontSize(12);
+  doc.text(hotel.name, marginLeft + 12, yPos + 13);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text('Maintenance Report', 20, 35);
-  
+  doc.setTextColor(71, 85, 105);
+  doc.text('Maintenance Report', marginLeft + 12, yPos + 21);
   doc.setTextColor(0, 0, 0);
-  yPos = 50;
+  yPos += 40;
 
-  // Report Info
-  doc.setFontSize(10);
-  doc.text(`Generated on: ${format(new Date(), 'MMMM d, yyyy')}`, pageWidth - 20, yPos, { align: 'right' });
-  yPos += 5;
+  doc.setFontSize(9);
+  doc.setTextColor(75, 85, 99);
+  doc.text(`Generated on: ${format(new Date(), 'MMMM d, yyyy')}`, marginLeft, yPos);
   if (dateRange) {
-    doc.text(`Period: ${format(new Date(dateRange.start), 'MMM d, yyyy')} - ${format(new Date(dateRange.end), 'MMM d, yyyy')}`, pageWidth - 20, yPos, { align: 'right' });
-    yPos += 5;
+    doc.text(
+      `Period: ${format(new Date(dateRange.start), 'MMM d, yyyy')} - ${format(new Date(dateRange.end), 'MMM d, yyyy')}`,
+      marginLeft + usableWidth / 2,
+      yPos
+    );
   }
-  doc.text(`Address: ${hotel.address}`, pageWidth - 20, yPos, { align: 'right' });
-  yPos += 15;
+  doc.text(`Address: ${hotel.address}`, marginLeft + usableWidth, yPos, { align: 'right' });
+  doc.setTextColor(0, 0, 0);
+  yPos += 10;
 
   // Summary Statistics
+  ensureSpace(45);
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('Summary Statistics', 20, yPos);
-  yPos += 10;
+  doc.text('Summary Statistics', marginLeft, yPos);
+  yPos += 8;
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -78,18 +95,22 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
     body: summaryData,
     theme: 'striped',
     headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-    styles: { fontSize: 10 },
-    margin: { left: 20, right: 20 },
+    styles: { fontSize: 10, cellPadding: 3, textColor: [17, 24, 39] },
+    margin: { left: marginLeft, right: marginRight },
+    columnStyles: {
+      0: { cellWidth: usableWidth * 0.65 },
+      1: { cellWidth: usableWidth * 0.35, halign: 'right' },
+    },
   });
-
-  yPos = (doc as any).lastAutoTable.finalY + 15;
+  yPos = (doc as any).lastAutoTable.finalY + 10;
 
   // Category Breakdown
   if (categoryStats.length > 0) {
+    ensureSpace(55);
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('Category Breakdown', 20, yPos);
-    yPos += 10;
+    doc.text('Category Breakdown', marginLeft, yPos);
+    yPos += 8;
 
     const categoryData = categoryStats.map(stat => [
       stat.category.charAt(0).toUpperCase() + stat.category.slice(1),
@@ -104,25 +125,21 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
       body: categoryData,
       theme: 'striped',
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-      styles: { fontSize: 9 },
-      margin: { left: 20, right: 20 },
+      styles: { fontSize: 9.5, cellPadding: 3, textColor: [17, 24, 39] },
+      margin: { left: marginLeft, right: marginRight },
       columnStyles: {
-        0: { cellWidth: 60 },
-        1: { cellWidth: 30, halign: 'center' },
-        2: { cellWidth: 40, halign: 'right' },
-        3: { cellWidth: 40, halign: 'right' },
+        0: { cellWidth: usableWidth * 0.34 },
+        1: { cellWidth: usableWidth * 0.16, halign: 'center' },
+        2: { cellWidth: usableWidth * 0.25, halign: 'right' },
+        3: { cellWidth: usableWidth * 0.25, halign: 'right' },
       },
     });
-
-    yPos = (doc as any).lastAutoTable.finalY + 15;
+    yPos = (doc as any).lastAutoTable.finalY + 10;
   }
 
-  // Internal vs external cost (+40% over internal)
+  // Internal vs external cost
   if (damages.length > 0) {
-    if (yPos > pageHeight - 80) {
-      doc.addPage();
-      yPos = 20;
-    }
+    ensureSpace(65);
     const byCategory: Record<DamageCategory, { internal: number; external: number }> = {} as any;
     for (const cat of getAllCategories()) {
       byCategory[cat] = { internal: 0, external: 0 };
@@ -152,47 +169,66 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
       rows.push(['Total', `$${totalInternal.toFixed(2)}`, `$${totalExternal.toFixed(2)}`, `$${(totalExternal - totalInternal).toFixed(2)}`]);
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('Internal vs external cost (+40%)', 20, yPos);
-      yPos += 10;
+      doc.text('Internal vs external cost', marginLeft, yPos);
+      yPos += 8;
       autoTable(doc, {
         startY: yPos,
-        head: [['Category', 'Internal (AUD)', 'External (+40%, AUD)', 'Savings (AUD)']],
+        head: [['Category', 'Internal (AUD)', 'External (AUD)', 'Savings (AUD)']],
         body: rows,
         theme: 'striped',
         headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-        styles: { fontSize: 9 },
-        margin: { left: 20, right: 20 },
+        styles: { fontSize: 9.5, cellPadding: 3, textColor: [17, 24, 39] },
+        margin: { left: marginLeft, right: marginRight },
         columnStyles: {
-          0: { cellWidth: 50 },
-          1: { cellWidth: 45, halign: 'right' },
-          2: { cellWidth: 50, halign: 'right' },
-          3: { cellWidth: 45, halign: 'right' },
+          0: { cellWidth: usableWidth * 0.28 },
+          1: { cellWidth: usableWidth * 0.24, halign: 'right' },
+          2: { cellWidth: usableWidth * 0.26, halign: 'right' },
+          3: { cellWidth: usableWidth * 0.22, halign: 'right' },
         },
       });
       yPos = (doc as any).lastAutoTable.finalY + 8;
-      doc.setFontSize(8);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 100, 100);
-      doc.text('External = internal + 40% for each repair.', 20, yPos);
+      doc.text('External values are estimated market benchmarks for each repair.', marginLeft, yPos);
       doc.setTextColor(0, 0, 0);
-      yPos += 15;
+      yPos += 10;
+    }
+  }
+
+  // Chart images (hybrid)
+  if (chartImages && chartImages.length > 0) {
+    const chartWidth = usableWidth;
+    const chartHeight = Math.min(120, chartWidth * 0.58);
+    for (const chart of chartImages) {
+      ensureSpace(chartHeight + 24);
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.text(chart.title, marginLeft, yPos);
+      yPos += 5;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text('Visual summary for client presentation', marginLeft, yPos);
+      doc.setTextColor(0, 0, 0);
+      yPos += 4;
+      try {
+        doc.addImage(chart.dataUrl, 'PNG', marginLeft, yPos, chartWidth, chartHeight);
+        yPos += chartHeight + 10;
+      } catch {
+        yPos += 5;
+      }
     }
   }
 
   // Recent Repairs Table
   if (damages.length > 0) {
-    // Check if we need a new page
-    if (yPos > pageHeight - 60) {
-      doc.addPage();
-      yPos = 20;
-    }
-
+    ensureSpace(70);
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('Recent Repairs', 20, yPos);
-    yPos += 10;
+    doc.text('Recent Repairs', marginLeft, yPos);
+    yPos += 8;
 
-    // Limit to last 50 repairs for PDF
     const recentDamages = damages.slice(0, 50);
     const repairsData = recentDamages.map(damage => [
       format(new Date(damage.reportedDate), 'MMM d, yyyy'),
@@ -209,39 +245,73 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
       body: repairsData,
       theme: 'striped',
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-      styles: { fontSize: 8 },
-      margin: { left: 20, right: 20 },
+      styles: { fontSize: 9, cellPadding: 2.5, textColor: [17, 24, 39] },
+      margin: { left: marginLeft, right: marginRight },
       columnStyles: {
-        0: { cellWidth: 30 },
-        1: { cellWidth: 20, halign: 'center' },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 60 },
-        4: { cellWidth: 25, halign: 'center' },
-        5: { cellWidth: 25, halign: 'right' },
+        0: { cellWidth: usableWidth * 0.16 },
+        1: { cellWidth: usableWidth * 0.1, halign: 'center' },
+        2: { cellWidth: usableWidth * 0.17 },
+        3: { cellWidth: usableWidth * 0.31 },
+        4: { cellWidth: usableWidth * 0.13, halign: 'center' },
+        5: { cellWidth: usableWidth * 0.13, halign: 'right' },
       },
       alternateRowStyles: { fillColor: [245, 247, 250] },
     });
+    yPos = (doc as any).lastAutoTable.finalY + 10;
   }
 
-  // Chart images (if provided)
-  if (chartImages && chartImages.length > 0) {
-    const chartWidth = pageWidth - 40;
-    const chartHeight = 70;
-    for (const chart of chartImages) {
-      if (yPos > pageHeight - chartHeight - 30) {
-        doc.addPage();
-        yPos = 20;
-      }
+  // Status and priority tables
+  if (damages.length > 0) {
+    const statusCounts = {
+      Completed: damages.filter((d) => d.status === 'completed').length,
+      'In Progress': damages.filter((d) => d.status === 'in-progress').length,
+      Pending: damages.filter((d) => d.status === 'pending').length,
+      Cancelled: damages.filter((d) => d.status === 'cancelled').length,
+    };
+    const priorityCounts = {
+      Urgent: damages.filter((d) => d.priority === 'urgent').length,
+      High: damages.filter((d) => d.priority === 'high').length,
+      Medium: damages.filter((d) => d.priority === 'medium').length,
+      Low: damages.filter((d) => d.priority === 'low').length,
+    };
+    const statusRows = Object.entries(statusCounts).filter(([, c]) => c > 0).map(([l, c]) => [l, String(c), toPercent(c, damages.length)]);
+    const priorityRows = Object.entries(priorityCounts).filter(([, c]) => c > 0).map(([l, c]) => [l, String(c), toPercent(c, damages.length)]);
+
+    if (statusRows.length > 0) {
+      ensureSpace(55);
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text(chart.title, 20, yPos);
-      yPos += 6;
-      try {
-        doc.addImage(chart.dataUrl, 'PNG', 20, yPos, chartWidth, chartHeight);
-        yPos += chartHeight + 15;
-      } catch {
-        yPos += 5;
-      }
+      doc.text('Repair Status Summary', marginLeft, yPos);
+      yPos += 7;
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Status', 'Count', 'Share']],
+        body: statusRows,
+        theme: 'striped',
+        headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+        styles: { fontSize: 9.5, cellPadding: 3, textColor: [17, 24, 39] },
+        margin: { left: marginLeft, right: marginRight },
+        columnStyles: { 0: { cellWidth: usableWidth * 0.5 }, 1: { cellWidth: usableWidth * 0.2, halign: 'right' }, 2: { cellWidth: usableWidth * 0.3, halign: 'right' } },
+      });
+      yPos = (doc as any).lastAutoTable.finalY + 8;
+    }
+    if (priorityRows.length > 0) {
+      ensureSpace(55);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Repair Priority Summary', marginLeft, yPos);
+      yPos += 7;
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Priority', 'Count', 'Share']],
+        body: priorityRows,
+        theme: 'striped',
+        headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+        styles: { fontSize: 9.5, cellPadding: 3, textColor: [17, 24, 39] },
+        margin: { left: marginLeft, right: marginRight },
+        columnStyles: { 0: { cellWidth: usableWidth * 0.5 }, 1: { cellWidth: usableWidth * 0.2, halign: 'right' }, 2: { cellWidth: usableWidth * 0.3, halign: 'right' } },
+      });
+      yPos = (doc as any).lastAutoTable.finalY + 10;
     }
   }
 
@@ -254,7 +324,7 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
     doc.text(
       `Page ${i} of ${totalPages}`,
       pageWidth / 2,
-      pageHeight - 10,
+      footerY,
       { align: 'center' }
     );
   }

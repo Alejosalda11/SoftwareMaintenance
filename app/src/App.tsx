@@ -173,7 +173,7 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard key={`dashboard-${refresh}`} />;
+        return <Dashboard key={`dashboard-${refresh}`} onViewAllHistory={() => setCurrentPage('history')} />;
       case 'damages':
         return <DamageTracker key={`damages-${refresh}`} />;
       case 'history':
@@ -185,7 +185,7 @@ function App() {
       case 'comparison':
         return <CostComparison key={`comparison-${refresh}`} />;
       default:
-        return <Dashboard key={`dashboard-${refresh}`} />;
+        return <Dashboard key={`dashboard-${refresh}`} onViewAllHistory={() => setCurrentPage('history')} />;
     }
   };
 

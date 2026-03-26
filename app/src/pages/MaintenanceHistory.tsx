@@ -247,7 +247,7 @@ export function MaintenanceHistory() {
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="space-y-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -257,9 +257,9 @@ export function MaintenanceHistory() {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full">
               <Select value={filterCategory} onValueChange={(v) => { setFilterCategory(v as DamageCategory | 'all'); setCurrentPage(1); }}>
-                <SelectTrigger className="w-36">
+                <SelectTrigger className="flex-1 min-w-0">
                   <Filter className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
@@ -270,7 +270,7 @@ export function MaintenanceHistory() {
               </Select>
               
               <Select value={filterMonth} onValueChange={setFilterMonth}>
-                <SelectTrigger className="w-36">
+                <SelectTrigger className="flex-1 min-w-0">
                   <Calendar className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
@@ -283,8 +283,9 @@ export function MaintenanceHistory() {
                   ))}
                 </SelectContent>
               </Select>
-              
-              <Button variant="outline" onClick={exportToCSV}>
+            </div>
+            <div>
+              <Button variant="outline" onClick={exportToCSV} className="w-auto">
                 <Download className="w-4 h-4 mr-2" />
                 Export
               </Button>

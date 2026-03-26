@@ -21,7 +21,11 @@ import type { Damage, Hotel } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { ImageGallery } from '@/components/ImageGallery';
 
-export function Dashboard() {
+type DashboardProps = {
+  onViewAllHistory?: () => void;
+};
+
+export function Dashboard({ onViewAllHistory }: DashboardProps) {
   const [hotel, setHotel] = useState<Hotel | null>(null);
   const [stats, setStats] = useState({
     totalRepairs: 0,
@@ -234,7 +238,7 @@ export function Dashboard() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Recent Repairs at {hotel.name}</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => window.location.href = '#/history'}>
+            <Button variant="outline" size="sm" onClick={() => onViewAllHistory?.()}>
               View All
             </Button>
           </div>
