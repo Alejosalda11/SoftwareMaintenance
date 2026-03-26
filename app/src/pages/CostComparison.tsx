@@ -5,7 +5,7 @@ import { Calculator, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getCurrentHotel, getDamages, getExternalRates, setExternalRates, subscribe, type DateRange } from '@/data/store';
+import { getCurrentHotel, getDamages, subscribe, type DateRange } from '@/data/store';
 import { getAllCategories } from '@/constants/externalRates';
 import type { DamageCategory } from '@/types';
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
@@ -57,7 +57,6 @@ export function CostComparison() {
   );
 
   const damages = hotel ? getDamages(hotel.id, dateRange) : [];
-  const externalRates = getExternalRates();
 
   const { byCategory, totalInternal, totalExternal, totalSavings } = useMemo(() => {
     const byCategory: Record<DamageCategory, { count: number; internal: number; external: number; savings: number }> = {
@@ -74,8 +73,7 @@ export function CostComparison() {
     for (const d of damages) {
       const cat = d.category;
       const internal = d.cost ?? 0;
-      const hours = d.hoursSpent ?? 1;
-      const externalEst = externalRates[cat] * hours;
+      const externalEst = internal * 1.4;
       const savings = externalEst - internal;
       byCategory[cat].count += 1;
       byCategory[cat].internal += internal;
@@ -90,14 +88,7 @@ export function CostComparison() {
     }
     const totalSavings = totalExternal - totalInternal;
     return { byCategory, totalInternal, totalExternal, totalSavings };
-  }, [damages, externalRates]);
-
-  const handleRateChange = (category: DamageCategory, value: string) => {
-    const num = parseFloat(value);
-    if (!Number.isNaN(num) && num >= 0) {
-      setExternalRates({ [category]: num });
-    }
-  };
+  }, [damages]);
 
   if (!hotel) {
     return (
@@ -115,34 +106,9 @@ export function CostComparison() {
           Cost comparison
         </h1>
         <p className="text-sm text-gray-600">
-          Rates are Sydney NSW 2026 reference (AUD/h). You can edit below. External estimated cost = (rate AUD/h) × hours spent per repair; repairs without hours use 1 h.
+          External estimated cost is calculated as 40% above internal cost for each repair.
         </p>
       </div>
-
-      {/* Section 1 – Parameters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">External rates (AUD/h)</CardTitle>
-          <p className="text-sm text-gray-500">Hourly rates used to estimate external cost per category.</p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {getAllCategories().map((cat) => (
-              <div key={cat} className="flex items-center gap-2">
-                <Label htmlFor={`rate-${cat}`} className="min-w-[100px]">{categoryLabel(cat)}</Label>
-                <Input
-                  id={`rate-${cat}`}
-                  type="number"
-                  min={0}
-                  step={5}
-                  value={externalRates[cat]}
-                  onChange={(e) => handleRateChange(cat, e.target.value)}
-                />
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Date range filter */}
       <Card>
@@ -194,7 +160,7 @@ export function CostComparison() {
         <CardHeader>
           <CardTitle className="text-lg">Internal vs external (estimated)</CardTitle>
           <p className="text-sm text-gray-500">
-            For the selected period: internal = what you paid; external = sum of (rate × hours) for each repair; savings = external − internal.
+            For the selected period: internal = what you paid; external = internal + 40%; savings = external − internal.
           </p>
         </CardHeader>
         <CardContent>
@@ -205,7 +171,7 @@ export function CostComparison() {
                   <th className="text-left py-2 font-medium">Category</th>
                   <th className="text-right py-2 font-medium">Repairs</th>
                   <th className="text-right py-2 font-medium">Internal (AUD)</th>
-                  <th className="text-right py-2 font-medium">External (by hours, AUD)</th>
+                  <th className="text-right py-2 font-medium">External (+40%, AUD)</th>
                   <th className="text-right py-2 font-medium">Savings (AUD)</th>
                 </tr>
               </thead>
@@ -249,7 +215,7 @@ export function CostComparison() {
             </span>
             <span className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-gray-500" />
-              Total external (estimated): <strong>{formatAUD(totalExternal)}</strong>
+              Total external (+40%): <strong>{formatAUD(totalExternal)}</strong>
             </span>
             <span className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-green-600" />

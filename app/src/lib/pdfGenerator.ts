@@ -22,7 +22,7 @@ interface PDFOptions {
 }
 
 export async function generatePDFReport(options: PDFOptions): Promise<void> {
-  const { hotel, damages, categoryStats, maintenanceStats, dateRange, chartImages, externalRates } = options;
+  const { hotel, damages, categoryStats, maintenanceStats, dateRange, chartImages } = options;
   
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -117,8 +117,8 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
     yPos = (doc as any).lastAutoTable.finalY + 15;
   }
 
-  // Internal vs external cost (when external rates provided)
-  if (externalRates && damages.length > 0) {
+  // Internal vs external cost (+40% over internal)
+  if (damages.length > 0) {
     if (yPos > pageHeight - 80) {
       doc.addPage();
       yPos = 20;
@@ -129,9 +129,9 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
     }
     for (const d of damages) {
       const cat = d.category;
-      const hours = d.hoursSpent ?? 1;
-      byCategory[cat].internal += d.cost ?? 0;
-      byCategory[cat].external += externalRates[cat] * hours;
+      const internal = d.cost ?? 0;
+      byCategory[cat].internal += internal;
+      byCategory[cat].external += internal * 1.4;
     }
     let totalInternal = 0;
     let totalExternal = 0;
@@ -152,11 +152,11 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
       rows.push(['Total', `$${totalInternal.toFixed(2)}`, `$${totalExternal.toFixed(2)}`, `$${(totalExternal - totalInternal).toFixed(2)}`]);
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('Internal vs external cost (Sydney NSW 2026 reference)', 20, yPos);
+      doc.text('Internal vs external cost (+40%)', 20, yPos);
       yPos += 10;
       autoTable(doc, {
         startY: yPos,
-        head: [['Category', 'Internal (AUD)', 'External estimated (AUD)', 'Savings (AUD)']],
+        head: [['Category', 'Internal (AUD)', 'External (+40%, AUD)', 'Savings (AUD)']],
         body: rows,
         theme: 'striped',
         headStyles: { fillColor: [59, 130, 246], textColor: 255 },
@@ -173,7 +173,7 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 100, 100);
-      doc.text('External = (rate AUD/h) × hours spent per repair. Repairs without hours use 1 h. Rates are Sydney 2026 reference.', 20, yPos);
+      doc.text('External = internal + 40% for each repair.', 20, yPos);
       doc.setTextColor(0, 0, 0);
       yPos += 15;
     }
