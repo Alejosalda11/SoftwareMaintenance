@@ -28,6 +28,12 @@ import type { Damage, DamageCategory, Hotel, RepairImage } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { ImageGallery } from '@/components/ImageGallery';
 import { SafeImage } from '@/components/SafeImage';
+import { RepairWorkItemsReadOnly } from '@/components/RepairWorkItemsReadOnly';
+import { flattenDamageForStats } from '@/lib/damageWorkItems';
+
+function damageMatchesCategory(d: Damage, cat: DamageCategory): boolean {
+  return d.category === cat || Boolean(d.workItems?.some((wi) => wi.category === cat));
+}
 
 const categories: DamageCategory[] = ['plumbing', 'electrical', 'furniture', 'appliances', 'structural', 'hvac', 'painting', 'cleaning', 'other'];
 
@@ -85,22 +91,29 @@ export function MaintenanceHistory() {
 
   const getAvailableMonths = () => {
     const months = new Set<string>();
-    damages.forEach(d => {
-      const date = d.completedDate || d.reportedDate;
-      const monthKey = format(parseISO(date), 'yyyy-MM');
-      months.add(monthKey);
+    damages.forEach((d) => {
+      flattenDamageForStats(d).forEach((line) => {
+        const date = line.completedDate || d.reportedDate;
+        if (date) months.add(format(parseISO(date), 'yyyy-MM'));
+      });
     });
     return Array.from(months).sort().reverse();
   };
 
-  const filteredDamages = damages.filter(damage => {
-    const matchesSearch = 
-      damage.roomNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      damage.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      damage.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (damage.assignedTo && damage.assignedTo.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesCategory = filterCategory === 'all' || damage.category === filterCategory;
+  const filteredDamages = damages.filter((damage) => {
+    const term = searchTerm.toLowerCase();
+    const matchesSearch =
+      damage.roomNumber.toLowerCase().includes(term) ||
+      damage.description.toLowerCase().includes(term) ||
+      damage.category.toLowerCase().includes(term) ||
+      (damage.assignedTo && damage.assignedTo.toLowerCase().includes(term)) ||
+      damage.workItems?.some(
+        (wi) =>
+          wi.description.toLowerCase().includes(term) || wi.category.toLowerCase().includes(term),
+      );
+
+    const matchesCategory =
+      filterCategory === 'all' || damageMatchesCategory(damage, filterCategory);
     
     let matchesMonth = true;
     if (filterMonth !== 'all') {
@@ -177,18 +190,35 @@ export function MaintenanceHistory() {
   const completedCount = filteredDamages.filter(d => d.status === 'completed').length;
 
   // Category-specific history when a category is selected
-  const categoryDamages = filterCategory !== 'all' 
-    ? damages.filter(d => d.category === filterCategory)
-    : [];
-  
-  const categoryStats = filterCategory !== 'all' ? {
-    total: categoryDamages.length,
-    completed: categoryDamages.filter(d => d.status === 'completed').length,
-    totalCost: categoryDamages.reduce((sum, d) => sum + d.cost, 0),
-    avgCost: categoryDamages.filter(d => d.status === 'completed').length > 0
-      ? categoryDamages.filter(d => d.status === 'completed').reduce((sum, d) => sum + d.cost, 0) / categoryDamages.filter(d => d.status === 'completed').length
-      : 0
-  } : null;
+  const categoryDamages =
+    filterCategory !== 'all'
+      ? damages.filter((d) => damageMatchesCategory(d, filterCategory))
+      : [];
+
+  const linesInCategory =
+    filterCategory !== 'all'
+      ? damages.flatMap((d) =>
+          flattenDamageForStats(d).filter((l) => l.category === filterCategory),
+        )
+      : [];
+
+  const categoryStats =
+    filterCategory !== 'all'
+      ? {
+          total: linesInCategory.length,
+          completed: linesInCategory.filter((l) => l.status === 'completed').length,
+          totalCost: linesInCategory
+            .filter((l) => l.status === 'completed')
+            .reduce((sum, l) => sum + l.cost, 0),
+          avgCost:
+            linesInCategory.filter((l) => l.status === 'completed').length > 0
+              ? linesInCategory
+                  .filter((l) => l.status === 'completed')
+                  .reduce((sum, l) => sum + l.cost, 0) /
+                linesInCategory.filter((l) => l.status === 'completed').length
+              : 0,
+        }
+      : null;
 
   if (!hotel) {
     return (
@@ -382,11 +412,22 @@ export function MaintenanceHistory() {
         ) : (
           paginatedDamages.map((damage) => {
             const displayDamage = detailsCache[damage.id] ?? damage;
-            const imageUrls = !displayDamage.images?.length
+            let imageUrls: string[] = !displayDamage.images?.length
               ? []
               : typeof displayDamage.images[0] === 'string'
                 ? (displayDamage.images as string[]).slice(0, 4)
                 : (displayDamage.images as RepairImage[]).slice(0, 4).map((img) => img.url);
+            if (imageUrls.length === 0 && displayDamage.workItems?.length) {
+              for (const wi of displayDamage.workItems) {
+                if (!wi.images?.length) continue;
+                const imgs = wi.images;
+                imageUrls =
+                  typeof imgs[0] === 'string'
+                    ? (imgs as unknown as string[]).slice(0, 4)
+                    : (imgs as RepairImage[]).slice(0, 4).map((img) => img.url);
+                if (imageUrls.length > 0) break;
+              }
+            }
             return (
             <Card
               key={damage.id}
@@ -406,9 +447,15 @@ export function MaintenanceHistory() {
                       </Badge>
                     </div>
                     
-                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-1 flex-wrap">
                       <Wrench className="w-4 h-4" />
                       <span className="capitalize">{displayDamage.category}</span>
+                      {displayDamage.workItems && displayDamage.workItems.length > 0 && (
+                        <Badge variant="secondary" className="font-normal text-xs">
+                          {displayDamage.workItems.length} trade
+                          {displayDamage.workItems.length !== 1 ? 's' : ''}
+                        </Badge>
+                      )}
                     </div>
                     
                     <p className="text-gray-800">{displayDamage.description}</p>
@@ -530,7 +577,8 @@ export function MaintenanceHistory() {
                 {d.notes && (
                   <p className="text-sm text-gray-500 italic">{d.notes}</p>
                 )}
-                {d.images && d.images.length > 0 && (
+                <RepairWorkItemsReadOnly damage={d} formatCurrency={formatCurrency} getStatusColor={getStatusColor} />
+                {(!d.workItems?.length && d.images && d.images.length > 0) && (
                   <ImageGallery images={d.images} damageId={d.id} />
                 )}
                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">

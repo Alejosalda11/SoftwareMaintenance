@@ -1,6 +1,7 @@
 // Hotel Maintenance Pro - Data Store (LocalStorage or Supabase)
 
 import type { Damage, Room, Hotel, User, MaintenanceStats, CategoryStats, MonthlyStats, PreventiveMaintenance, ExternalRates } from '@/types';
+import { flattenDamageForStats } from '@/lib/damageWorkItems';
 import { getDefaultExternalRates } from '@/constants/externalRates';
 import { hashPassword, signUpNewUser, signOutSupabase } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -1958,6 +1959,8 @@ export const updatePreventiveMaintenance = (id: string, updates: Partial<Prevent
       }
       nextUpdates.nextDueDate = nextDate.toISOString().split('T')[0];
       nextUpdates.status = 'pending';
+      nextUpdates.roomProgress = [];
+      nextUpdates.roomsDoneNotes = '';
     }
     api.updatePreventiveRow(id, nextUpdates).then((updated) => {
       if (updated && hotelId && preventiveCache[hotelId]) {
@@ -1986,6 +1989,8 @@ export const updatePreventiveMaintenance = (id: string, updates: Partial<Prevent
     }
     up.nextDueDate = nextDate.toISOString().split('T')[0];
     up.status = 'pending';
+    up.roomProgress = [];
+    up.roomsDoneNotes = '';
   }
   allPreventive[i] = { ...allPreventive[i], ...up };
   localStorage.setItem(STORAGE_KEYS.preventive, JSON.stringify(allPreventive));
@@ -2047,17 +2052,20 @@ export const getMaintenanceStats = (hotelId: string, dateRange?: DateRange): Mai
 export const getCategoryStats = (hotelId: string, dateRange?: DateRange): CategoryStats[] => {
   const damages = getDamages(hotelId, dateRange);
   const stats: Record<string, CategoryStats> = {};
-  
-  damages.forEach(d => {
-    if (!stats[d.category]) {
-      stats[d.category] = { category: d.category, count: 0, totalCost: 0 };
-    }
-    stats[d.category].count++;
-    if (d.status === 'completed') {
-      stats[d.category].totalCost += d.cost;
-    }
+
+  damages.forEach((d) => {
+    const lines = flattenDamageForStats(d);
+    lines.forEach((line) => {
+      if (!stats[line.category]) {
+        stats[line.category] = { category: line.category, count: 0, totalCost: 0 };
+      }
+      stats[line.category].count += 1;
+      if (line.status === 'completed') {
+        stats[line.category].totalCost += line.cost;
+      }
+    });
   });
-  
+
   return Object.values(stats).sort((a, b) => b.count - a.count);
 };
 
@@ -2080,14 +2088,17 @@ export const getMonthlyStats = (hotelId: string, dateRange?: DateRange): Monthly
     stats[key] = { month: key, repairs: 0, expenses: 0 };
   }
   
-  damages.forEach(d => {
-    if (d.status !== 'completed' || !d.completedDate) return;
-    const date = new Date(d.completedDate);
-    const key = date.toLocaleString('default', { month: 'short', year: 'numeric' });
-    if (stats[key]) {
-      stats[key].repairs++;
-      stats[key].expenses += d.cost;
-    }
+  damages.forEach((d) => {
+    const lines = flattenDamageForStats(d);
+    lines.forEach((line) => {
+      if (line.status !== 'completed' || !line.completedDate) return;
+      const date = new Date(line.completedDate);
+      const key = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+      if (stats[key]) {
+        stats[key].repairs += 1;
+        stats[key].expenses += line.cost;
+      }
+    });
   });
   
   return Object.values(stats);

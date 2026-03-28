@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Hotel, Damage, CategoryStats, MaintenanceStats, DamageCategory } from '@/types';
 import { getAllCategories } from '@/constants/externalRates';
+import { flattenDamageForStats } from '@/lib/damageWorkItems';
 import { format } from 'date-fns';
 
 export interface ChartImageOption {
@@ -145,10 +146,12 @@ export async function generatePDFReport(options: PDFOptions): Promise<void> {
       byCategory[cat] = { internal: 0, external: 0 };
     }
     for (const d of damages) {
-      const cat = d.category;
-      const internal = d.cost ?? 0;
-      byCategory[cat].internal += internal;
-      byCategory[cat].external += internal * 1.4;
+      for (const line of flattenDamageForStats(d)) {
+        const cat = line.category;
+        const internal = line.cost ?? 0;
+        byCategory[cat].internal += internal;
+        byCategory[cat].external += internal * 1.4;
+      }
     }
     let totalInternal = 0;
     let totalExternal = 0;

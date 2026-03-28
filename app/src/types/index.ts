@@ -51,6 +51,18 @@ export interface RepairItem {
   estimatedCost?: number;
 }
 
+/** One line of work inside a room repair order */
+export interface RepairWorkItem {
+  id: string;
+  category: DamageCategory;
+  description: string;
+  status: DamageStatus;
+  images: RepairImage[];
+  cost?: number;
+  notes?: string;
+  completedDate?: string;
+}
+
 export interface Damage {
   id: string;
   hotelId: string;
@@ -70,6 +82,8 @@ export interface Damage {
   images: string[] | RepairImage[]; // Support both old format (string[]) and new format (RepairImage[])
   lastEditedAt?: string; // ISO date when repair was last updated
   hoursSpent?: number; // Duration in hours (e.g. 1.5) for internal rate and external estimate
+  /** When set, this order groups multiple trades in one room; legacy rows use root fields only */
+  workItems?: RepairWorkItem[];
 }
 
 export type RoomStatus = 'available' | 'occupied' | 'maintenance' | 'out-of-order';
@@ -113,6 +127,11 @@ export interface Handyman {
 export type PreventiveFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 export type PreventiveStatus = 'pending' | 'in-progress' | 'completed' | 'overdue';
 
+export interface PreventiveRoomProgressEntry {
+  roomNumber: string;
+  doneAt: string;
+}
+
 export interface PreventiveMaintenance {
   id: string;
   hotelId: string;
@@ -125,4 +144,8 @@ export interface PreventiveMaintenance {
   lastCompletedDate?: string;
   assignedTo?: string;
   status: PreventiveStatus;
+  /** Hotel-wide tasks: rooms marked done in the current cycle */
+  roomProgress?: PreventiveRoomProgressEntry[];
+  /** Free-form notes e.g. comma-separated room numbers */
+  roomsDoneNotes?: string;
 }

@@ -20,6 +20,7 @@ import { getDamages, getMaintenanceStats, getRooms, getCurrentHotel } from '@/da
 import type { Damage, Hotel } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { ImageGallery } from '@/components/ImageGallery';
+import { RepairWorkItemsReadOnly } from '@/components/RepairWorkItemsReadOnly';
 
 type DashboardProps = {
   onViewAllHistory?: () => void;
@@ -270,6 +271,11 @@ export function Dashboard({ onViewAllHistory }: DashboardProps) {
                     <div>
                       <p className="font-medium text-gray-900">Room {damage.roomNumber}</p>
                       <p className="text-sm text-gray-500 capitalize">{damage.category}</p>
+                      {damage.workItems && damage.workItems.length > 0 && (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {damage.workItems.length} trade{damage.workItems.length !== 1 ? 's' : ''}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -312,7 +318,14 @@ export function Dashboard({ onViewAllHistory }: DashboardProps) {
                 {selectedDamage.notes && (
                   <p className="text-sm text-gray-500 italic">{selectedDamage.notes}</p>
                 )}
-                {selectedDamage.images && selectedDamage.images.length > 0 && (
+                <RepairWorkItemsReadOnly
+                  damage={selectedDamage}
+                  formatCurrency={formatCurrency}
+                  getStatusColor={getStatusColor}
+                />
+                {(!selectedDamage.workItems?.length &&
+                  selectedDamage.images &&
+                  selectedDamage.images.length > 0) && (
                   <ImageGallery images={selectedDamage.images} damageId={selectedDamage.id} />
                 )}
                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">

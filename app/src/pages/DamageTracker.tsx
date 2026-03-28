@@ -27,11 +27,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { getDamages, addDamage, updateDamage, deleteDamage, getCurrentHotel, getCurrentUser, getUsers } from '@/data/store';
 import { fetchDamageById } from '@/data/supabase-api';
-import type { Damage, DamageStatus, DamagePriority, DamageCategory, Hotel, RepairImage, RepairItem } from '@/types';
+import type { Damage, DamageStatus, DamagePriority, DamageCategory, Hotel, RepairImage, RepairItem, RepairWorkItem } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { ImageUpload } from '@/components/ImageUpload';
 import { ImageGallery } from '@/components/ImageGallery';
+import {
+  createEmptyRepairWorkItem,
+  deriveAggregateStatusFromWorkItems,
+  deriveParentFromWorkItems,
+} from '@/lib/damageWorkItems';
+import { RepairWorkItemsReadOnly } from '@/components/RepairWorkItemsReadOnly';
 
 const categories: DamageCategory[] = ['plumbing', 'electrical', 'furniture', 'appliances', 'structural', 'hvac', 'painting', 'cleaning', 'other'];
 const priorities: DamagePriority[] = ['low', 'medium', 'high', 'urgent'];
@@ -64,6 +70,7 @@ export function DamageTracker() {
   });
   const [images, setImages] = useState<RepairImage[]>([]);
   const [itemsUsed, setItemsUsed] = useState<RepairItem[]>([]);
+  const [workItems, setWorkItems] = useState<RepairWorkItem[]>([]);
 
   useEffect(() => {
     const currentHotel = getCurrentHotel();
@@ -109,6 +116,7 @@ export function DamageTracker() {
     });
     setImages([]);
     setItemsUsed([]);
+    setWorkItems([]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -120,28 +128,65 @@ export function DamageTracker() {
     }
 
     const currentUser = getCurrentUser();
-    
     const hoursVal = parseFloat(formData.hoursSpent);
-    const damageData = {
-      hotelId: hotel.id,
-      roomNumber: formData.roomNumber,
-      category: formData.category,
-      description: formData.description,
-      status: formData.status,
-      priority: formData.priority,
-      reportedDate: new Date().toISOString().split('T')[0],
-      cost: parseFloat(formData.cost) || 0,
-      hoursSpent: hoursVal > 0 ? hoursVal : undefined,
-      materials: itemsUsed.length > 0
-        ? itemsUsed.map(i => (i.brand ? `${i.name} (${i.brand})` : i.name))
-        : formData.materials.split(',').map(m => m.trim()).filter(Boolean),
-      itemsUsed: itemsUsed.length > 0 ? itemsUsed : undefined,
-      notes: formData.notes,
-      reportedBy: currentUser?.name || 'Handyman',
-      assignedTo: formData.assignedTo || currentUser?.name || undefined,
-      images: images.length > 0 ? images.map(img => ({ type: img.type, url: img.url, uploadedAt: img.uploadedAt })) : [],
-      completedDate: formData.status === 'completed' ? new Date().toISOString().split('T')[0] : undefined
-    };
+    const materialsArr = itemsUsed.length > 0
+      ? itemsUsed.map(i => (i.brand ? `${i.name} (${i.brand})` : i.name))
+      : formData.materials.split(',').map(m => m.trim()).filter(Boolean);
+
+    const useLines = workItems.length > 0;
+    if (useLines) {
+      const missing = workItems.some((w) => !w.description.trim());
+      if (missing) {
+        toast.error('Each trade line needs a description');
+        return;
+      }
+    } else if (!formData.description.trim()) {
+      toast.error('Description is required');
+      return;
+    }
+
+    const reportedDate = editingDamage?.reportedDate ?? new Date().toISOString().split('T')[0];
+    const fallbackCost = parseFloat(formData.cost) || 0;
+    const derived = deriveParentFromWorkItems(workItems, fallbackCost);
+
+    const damageData: Omit<Damage, 'id'> = useLines
+      ? {
+          hotelId: hotel.id,
+          roomNumber: formData.roomNumber,
+          ...derived,
+          workItems: workItems.map((wi) => ({
+            ...wi,
+            images: wi.images.map((img) => ({ type: img.type, url: img.url, uploadedAt: img.uploadedAt })),
+          })),
+          priority: formData.priority,
+          reportedDate,
+          hoursSpent: hoursVal > 0 ? hoursVal : undefined,
+          materials: materialsArr,
+          itemsUsed: itemsUsed.length > 0 ? itemsUsed : undefined,
+          notes: formData.notes,
+          reportedBy: editingDamage?.reportedBy ?? currentUser?.name ?? 'Handyman',
+          assignedTo: formData.assignedTo || currentUser?.name || undefined,
+          images: [],
+        }
+      : {
+          hotelId: hotel.id,
+          roomNumber: formData.roomNumber,
+          category: formData.category,
+          description: formData.description,
+          status: formData.status,
+          priority: formData.priority,
+          reportedDate,
+          cost: fallbackCost,
+          hoursSpent: hoursVal > 0 ? hoursVal : undefined,
+          materials: materialsArr,
+          itemsUsed: itemsUsed.length > 0 ? itemsUsed : undefined,
+          notes: formData.notes,
+          reportedBy: editingDamage?.reportedBy ?? currentUser?.name ?? 'Handyman',
+          assignedTo: formData.assignedTo || currentUser?.name || undefined,
+          images: images.length > 0 ? images.map((img) => ({ type: img.type, url: img.url, uploadedAt: img.uploadedAt })) : [],
+          completedDate: formData.status === 'completed' ? new Date().toISOString().split('T')[0] : undefined,
+          workItems: [],
+        };
 
     if (editingDamage) {
       updateDamage(editingDamage.id, damageData);
@@ -157,36 +202,49 @@ export function DamageTracker() {
     loadHotelData(hotel.id);
   };
 
-  const handleEdit = (damage: Damage) => {
-    setEditingDamage(damage);
-    setFormData({
-      roomNumber: damage.roomNumber,
-      category: damage.category,
-      description: damage.description,
-      priority: damage.priority,
-      status: damage.status,
-      cost: damage.cost.toString(),
-      hoursSpent: damage.hoursSpent != null ? damage.hoursSpent.toString() : '',
-      materials: damage.materials.join(', '),
-      notes: damage.notes,
-      assignedTo: damage.assignedTo || ''
-    });
-    // Handle both old format (string[]) and new format (RepairImage[])
-    if (damage.images && damage.images.length > 0) {
-      if (typeof damage.images[0] === 'string') {
-        // Convert old format to new format
-        setImages((damage.images as string[]).map(url => ({
-          type: 'before' as const,
-          url,
-          uploadedAt: new Date().toISOString()
-        })));
-      } else {
-        setImages(damage.images as RepairImage[]);
-      }
-    } else {
+  const handleEdit = async (damage: Damage) => {
+    const full = await fetchDamageById(damage.id);
+    const d = full ?? damage;
+
+    if (d.workItems && d.workItems.length > 0) {
+      setWorkItems(
+        d.workItems.map((wi) => ({
+          ...wi,
+          images: (wi.images ?? []).map((img) => ({ ...img })),
+        })),
+      );
       setImages([]);
+    } else {
+      setWorkItems([]);
+      if (d.images && d.images.length > 0) {
+        if (typeof d.images[0] === 'string') {
+          setImages((d.images as string[]).map((url) => ({
+            type: 'before' as const,
+            url,
+            uploadedAt: new Date().toISOString(),
+          })));
+        } else {
+          setImages(d.images as RepairImage[]);
+        }
+      } else {
+        setImages([]);
+      }
     }
-    setItemsUsed(damage.itemsUsed && damage.itemsUsed.length > 0 ? damage.itemsUsed : []);
+
+    setEditingDamage(d);
+    setFormData({
+      roomNumber: d.roomNumber,
+      category: d.category,
+      description: d.description,
+      priority: d.priority,
+      status: d.status,
+      cost: d.cost.toString(),
+      hoursSpent: d.hoursSpent != null ? d.hoursSpent.toString() : '',
+      materials: d.materials.join(', '),
+      notes: d.notes,
+      assignedTo: d.assignedTo || '',
+    });
+    setItemsUsed(d.itemsUsed && d.itemsUsed.length > 0 ? d.itemsUsed : []);
     setIsAddDialogOpen(true);
   };
 
@@ -200,15 +258,23 @@ export function DamageTracker() {
     }
   };
 
-  const filteredDamages = damages.filter(damage => {
-    const matchesSearch = 
-      damage.roomNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      damage.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      damage.category.toLowerCase().includes(searchTerm.toLowerCase());
-    
+  const filteredDamages = damages.filter((damage) => {
+    const term = searchTerm.toLowerCase();
+    const matchesSearch =
+      damage.roomNumber.toLowerCase().includes(term) ||
+      damage.description.toLowerCase().includes(term) ||
+      damage.category.toLowerCase().includes(term) ||
+      damage.workItems?.some(
+        (wi) =>
+          wi.description.toLowerCase().includes(term) || wi.category.toLowerCase().includes(term),
+      );
+
     const matchesStatus = filterStatus === 'all' || damage.status === filterStatus;
-    const matchesCategory = filterCategory === 'all' || damage.category === filterCategory;
-    
+    const matchesCategory =
+      filterCategory === 'all' ||
+      damage.category === filterCategory ||
+      damage.workItems?.some((wi) => wi.category === filterCategory);
+
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
@@ -340,14 +406,21 @@ export function DamageTracker() {
             open={isAddDialogOpen}
             onOpenChange={(open) => {
               setIsAddDialogOpen(open);
-              if (open) {
-                resetForm();
+              if (!open) {
                 setEditingDamage(null);
+                resetForm();
               }
             }}
           >
             <DialogTrigger asChild>
-              <Button type="button" className="w-full sm:w-auto">
+              <Button
+                type="button"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setEditingDamage(null);
+                  resetForm();
+                }}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 <span className="hidden sm:inline">Add Repair</span>
                 <span className="sm:hidden">Add</span>
@@ -364,76 +437,291 @@ export function DamageTracker() {
                     <Label>Room Number</Label>
                     <Input
                       value={formData.roomNumber}
-                      onChange={(e) => setFormData({...formData, roomNumber: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, roomNumber: e.target.value })}
                       placeholder="e.g., 101"
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Category</Label>
-                    <Select 
-                      value={formData.category} 
-                      onValueChange={(v) => setFormData({...formData, category: v as DamageCategory})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                  {workItems.length === 0 ? (
+                    <div className="space-y-2">
+                      <Label>Category</Label>
+                      <Select
+                        value={formData.category}
+                        onValueChange={(v) => setFormData({ ...formData, category: v as DamageCategory })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {c}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 flex flex-col justify-end pb-1">
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">{workItems.length} trade lines</span>
+                        <span className="mx-2">·</span>
+                        Overall:{' '}
+                        <span className="capitalize font-medium">
+                          {deriveAggregateStatusFromWorkItems(workItems)}
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setWorkItems((prev) => [...prev, createEmptyRepairWorkItem()])}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add trade line (same room, multiple categories)
+                </Button>
+
+                {workItems.length > 0 && (
+                  <div className="space-y-3">
+                    {workItems.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        className="rounded-lg border border-gray-200 bg-gray-50/90 p-3 space-y-3"
+                      >
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-sm font-semibold text-gray-800">Trade {idx + 1}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 h-8"
+                            onClick={() => setWorkItems(workItems.filter((w) => w.id !== item.id))}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Category</Label>
+                            <Select
+                              value={item.category}
+                              onValueChange={(v) =>
+                                setWorkItems(
+                                  workItems.map((w) =>
+                                    w.id === item.id ? { ...w, category: v as DamageCategory } : w,
+                                  ),
+                                )
+                              }
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {categories.map((c) => (
+                                  <SelectItem key={c} value={c}>
+                                    {c}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Status</Label>
+                            <Select
+                              value={item.status}
+                              onValueChange={(v) => {
+                                const st = v as DamageStatus;
+                                setWorkItems(
+                                  workItems.map((w) =>
+                                    w.id === item.id
+                                      ? {
+                                          ...w,
+                                          status: st,
+                                          completedDate:
+                                            st === 'completed'
+                                              ? (w.completedDate ?? new Date().toISOString().split('T')[0])
+                                              : undefined,
+                                        }
+                                      : w,
+                                  ),
+                                );
+                              }}
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {statuses.map((s) => (
+                                  <SelectItem key={s} value={s}>
+                                    {s}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Description</Label>
+                          <Textarea
+                            value={item.description}
+                            onChange={(e) =>
+                              setWorkItems(
+                                workItems.map((w) =>
+                                  w.id === item.id ? { ...w, description: e.target.value } : w,
+                                ),
+                              )
+                            }
+                            placeholder="What was done or needed..."
+                            rows={2}
+                            className="min-h-[60px]"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Line cost ($)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.cost ?? ''}
+                              onChange={(e) =>
+                                setWorkItems(
+                                  workItems.map((w) =>
+                                    w.id === item.id
+                                      ? {
+                                          ...w,
+                                          cost: e.target.value ? parseFloat(e.target.value) : undefined,
+                                        }
+                                      : w,
+                                  ),
+                                )
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Notes</Label>
+                            <Input
+                              value={item.notes ?? ''}
+                              onChange={(e) =>
+                                setWorkItems(
+                                  workItems.map((w) =>
+                                    w.id === item.id ? { ...w, notes: e.target.value || undefined } : w,
+                                  ),
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Photos (this trade)</Label>
+                          <ImageUpload
+                            images={item.images}
+                            onChange={(imgs) =>
+                              setWorkItems(workItems.map((w) => (w.id === item.id ? { ...w, images: imgs } : w)))
+                            }
+                            maxImages={8}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    placeholder="Describe the issue..."
-                    required
-                  />
-                </div>
+                )}
+
+                {workItems.length === 0 && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Description</Label>
+                      <Textarea
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        placeholder="Describe the issue..."
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Priority</Label>
+                        <Select
+                          value={formData.priority}
+                          onValueChange={(v) => setFormData({ ...formData, priority: v as DamagePriority })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {priorities.map((p) => (
+                              <SelectItem key={p} value={p}>
+                                {p}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Status</Label>
+                        <Select
+                          value={formData.status}
+                          onValueChange={(v) => setFormData({ ...formData, status: v as DamageStatus })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statuses.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {workItems.length > 0 && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Priority (visit)</Label>
+                      <Select
+                        value={formData.priority}
+                        onValueChange={(v) => setFormData({ ...formData, priority: v as DamagePriority })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {priorities.map((p) => (
+                            <SelectItem key={p} value={p}>
+                              {p}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 flex flex-col justify-end">
+                      <Label className="font-normal text-gray-600 text-sm">Overall status (read-only)</Label>
+                      <Badge className="w-fit capitalize">{deriveAggregateStatusFromWorkItems(workItems)}</Badge>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Priority</Label>
-                    <Select 
-                      value={formData.priority} 
-                      onValueChange={(v) => setFormData({...formData, priority: v as DamagePriority})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {priorities.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Status</Label>
-                    <Select 
-                      value={formData.status} 
-                      onValueChange={(v) => setFormData({...formData, status: v as DamageStatus})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Cost ($)</Label>
+                    <Label>{workItems.length > 0 ? 'Shared / fallback cost ($)' : 'Cost ($)'}</Label>
+                    {workItems.length > 0 && (
+                      <p className="text-xs text-gray-500">Used when line costs are empty or as extra total</p>
+                    )}
                     <Input
                       type="number"
                       step="0.01"
                       value={formData.cost}
-                      onChange={(e) => setFormData({...formData, cost: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
                       placeholder="0.00"
                     />
                   </div>
@@ -600,6 +888,12 @@ export function DamageTracker() {
                         {getStatusIcon(damage.status)}
                         <span className="ml-1">{damage.status}</span>
                       </Badge>
+                      {damage.workItems && damage.workItems.length > 0 && (
+                        <Badge variant="secondary" className="font-normal">
+                          {damage.workItems.filter((w) => w.status !== 'completed' && w.status !== 'cancelled').length}{' '}
+                          open · {damage.workItems.length} trades
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-gray-600 mt-1 capitalize">{damage.category}</p>
                     <p className="text-gray-800 mt-2">{damage.description}</p>
@@ -674,7 +968,8 @@ export function DamageTracker() {
                 {d.notes && (
                   <p className="text-sm text-gray-500 italic">{d.notes}</p>
                 )}
-                {d.images && d.images.length > 0 && (
+                <RepairWorkItemsReadOnly damage={d} formatCurrency={formatCurrency} getStatusColor={getStatusColor} />
+                {(!d.workItems?.length && d.images && d.images.length > 0) && (
                   <ImageGallery images={d.images} damageId={d.id} />
                 )}
                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">

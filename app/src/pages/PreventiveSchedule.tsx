@@ -12,7 +12,8 @@ import {
   Building2,
   Home,
   Edit2,
-  Trash2
+  Trash2,
+  ClipboardList
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   getPreventiveMaintenance, 
   addPreventiveMaintenance, 
@@ -31,12 +34,16 @@ import {
   getUsers,
   getRooms
 } from '@/data/store';
-import type { PreventiveMaintenance, Hotel, DamageCategory, PreventiveFrequency, PreventiveStatus, Room } from '@/types';
+import type { PreventiveMaintenance, Hotel, DamageCategory, PreventiveFrequency, PreventiveStatus, Room, PreventiveRoomProgressEntry } from '@/types';
 import { format, parseISO, isPast, isToday } from 'date-fns';
 import { toast } from 'sonner';
 
 const categories: DamageCategory[] = ['plumbing', 'electrical', 'furniture', 'appliances', 'structural', 'hvac', 'painting', 'cleaning', 'other'];
 const frequencies: PreventiveFrequency[] = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'];
+
+function isHotelWideTask(task: PreventiveMaintenance): boolean {
+  return !task.roomNumber?.trim();
+}
 
 export function PreventiveSchedule() {
   const [hotel, setHotel] = useState<Hotel | null>(null);
@@ -50,6 +57,11 @@ export function PreventiveSchedule() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<PreventiveMaintenance | null>(null);
   const [_viewMode, _setViewMode] = useState<'list' | 'calendar'>('list');
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [checklistTask, setChecklistTask] = useState<PreventiveMaintenance | null>(null);
+  const [progressDraft, setProgressDraft] = useState<PreventiveRoomProgressEntry[]>([]);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [roomSearchChecklist, setRoomSearchChecklist] = useState('');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -119,7 +131,11 @@ export function PreventiveSchedule() {
     };
 
     if (editingTask) {
-      updatePreventiveMaintenance(editingTask.id, taskData);
+      updatePreventiveMaintenance(editingTask.id, {
+        ...taskData,
+        roomProgress: editingTask.roomProgress,
+        roomsDoneNotes: editingTask.roomsDoneNotes,
+      });
       toast.success('Preventive maintenance task updated successfully!');
       setEditingTask(null);
     } else {
@@ -163,6 +179,81 @@ export function PreventiveSchedule() {
       loadHotelData(hotel.id);
     }
   };
+
+  const openRoomChecklist = (task: PreventiveMaintenance) => {
+    setChecklistTask(task);
+    setProgressDraft([...(task.roomProgress ?? [])]);
+    setNotesDraft(task.roomsDoneNotes ?? '');
+    setRoomSearchChecklist('');
+    setChecklistOpen(true);
+  };
+
+  const saveChecklistProgress = () => {
+    if (!hotel || !checklistTask) return;
+    updatePreventiveMaintenance(checklistTask.id, {
+      roomProgress: progressDraft,
+      roomsDoneNotes: notesDraft.trim(),
+    });
+    toast.success('Room progress saved');
+    setChecklistOpen(false);
+    setChecklistTask(null);
+    loadHotelData(hotel.id);
+  };
+
+  const completePreventiveRound = (task: PreventiveMaintenance) => {
+    const listCount = rooms.length;
+    const doneCount = task.roomProgress?.length ?? 0;
+    if (isHotelWideTask(task) && listCount > 0 && doneCount < listCount) {
+      if (!confirm(
+        `Only ${doneCount} of ${listCount} rooms in the list are checked. Close this cycle and advance the schedule anyway?`
+      )) {
+        return;
+      }
+    } else if (isHotelWideTask(task) && listCount === 0 && hotel && hotel.totalRooms > 0) {
+      if (!confirm(
+        `No rooms are loaded in the app for this hotel (${hotel.totalRooms} total per hotel). Close this cycle anyway?`
+      )) {
+        return;
+      }
+    }
+    updatePreventiveMaintenance(task.id, { status: 'completed' });
+    toast.success('Cycle completed — schedule advanced');
+    if (hotel) loadHotelData(hotel.id);
+  };
+
+  const filteredRoomsForChecklist = [...rooms]
+    .filter((r) => r.number.toLowerCase().includes(roomSearchChecklist.trim().toLowerCase()))
+    .sort((a, b) => {
+      const na = parseInt(a.number, 10);
+      const nb = parseInt(b.number, 10);
+      if (!Number.isNaN(na) && !Number.isNaN(nb) && na !== nb) return na - nb;
+      return a.number.localeCompare(b.number, undefined, { numeric: true });
+    });
+
+  const toggleRoomDone = (roomNumber: string, checked: boolean) => {
+    if (checked) {
+      const doneAt = new Date().toISOString();
+      setProgressDraft((prev) => {
+        if (prev.some((p) => p.roomNumber === roomNumber)) return prev;
+        return [...prev, { roomNumber, doneAt }];
+      });
+    } else {
+      setProgressDraft((prev) => prev.filter((p) => p.roomNumber !== roomNumber));
+    }
+  };
+
+  const markAllFilteredRooms = () => {
+    const doneAt = new Date().toISOString();
+    setProgressDraft((prev) => {
+      const map = new Map(prev.map((p) => [p.roomNumber, p] as const));
+      for (const r of filteredRoomsForChecklist) {
+        map.set(r.number, { roomNumber: r.number, doneAt });
+      }
+      return Array.from(map.values());
+    });
+  };
+
+  const clearAllRooms = () => setProgressDraft([]);
 
   const getStatusColor = (status: PreventiveStatus) => {
     switch (status) {
@@ -431,6 +522,90 @@ export function PreventiveSchedule() {
         </CardContent>
       </Card>
 
+      <Dialog open={checklistOpen} onOpenChange={(open) => { setChecklistOpen(open); if (!open) setChecklistTask(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="w-5 h-5" />
+              Room checklist
+            </DialogTitle>
+            {checklistTask && (
+              <p className="text-sm text-gray-500 font-normal">{checklistTask.title} · {hotel.name}</p>
+            )}
+          </DialogHeader>
+          <div className="px-6 space-y-3 flex-1 min-h-0 flex flex-col">
+            <p className="text-sm text-gray-600">
+              Check rooms as you complete the work. Save progress without closing the cycle. Use notes for rooms not in the list.
+            </p>
+            {hotel && rooms.length < hotel.totalRooms && (
+              <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                This hotel has {hotel.totalRooms} rooms but only {rooms.length} in the app — import or add rooms, or track extra numbers in notes.
+              </p>
+            )}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Search room number..."
+                value={roomSearchChecklist}
+                onChange={(e) => setRoomSearchChecklist(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button type="button" variant="secondary" size="sm" onClick={markAllFilteredRooms}>
+                Mark visible
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={clearAllRooms}>
+                Clear all
+              </Button>
+            </div>
+            <Label>Notes (free-form room numbers, etc.)</Label>
+            <Textarea
+              value={notesDraft}
+              onChange={(e) => setNotesDraft(e.target.value)}
+              placeholder="e.g. 101, 102, staff storage…"
+              rows={2}
+              className="resize-none"
+            />
+            <ScrollArea className="h-[min(50vh,320px)] border rounded-md">
+              <div className="p-3 space-y-2">
+                {filteredRoomsForChecklist.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-4 text-center">No rooms match. Add rooms in Rooms or use notes above.</p>
+                ) : (
+                  filteredRoomsForChecklist.map((room) => {
+                    const checked = progressDraft.some((p) => p.roomNumber === room.number);
+                    return (
+                      <label
+                        key={room.number}
+                        className="flex items-center gap-3 rounded-md border border-gray-100 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => toggleRoomDone(room.number, v === true)}
+                        />
+                        <span className="font-medium">Room {room.number}</span>
+                        <span className="text-xs text-gray-500 capitalize ml-auto">{room.type}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </ScrollArea>
+            <p className="text-sm text-gray-500 pb-2">
+              {progressDraft.length} room{progressDraft.length !== 1 ? 's' : ''} checked
+            </p>
+          </div>
+          <div className="flex gap-2 p-6 pt-2 border-t bg-gray-50/80">
+            <Button type="button" className="flex-1" onClick={saveChecklistProgress}>
+              Save progress
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setChecklistOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Tasks List */}
       <div className="space-y-3">
         {filteredTasks.length === 0 ? (
@@ -465,11 +640,35 @@ export function PreventiveSchedule() {
                             Room {task.roomNumber}
                           </Badge>
                         )}
+                        {isHotelWideTask(task) && (
+                          <Badge variant="outline" className="capitalize">
+                            Hotel-wide
+                          </Badge>
+                        )}
                       </div>
                       
                       <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
                         <span className="capitalize">{task.category}</span>
                       </div>
+
+                      {isHotelWideTask(task) && (
+                        <div className="text-sm text-gray-700 mt-1 space-y-0.5">
+                          <p>
+                            <span className="font-medium text-gray-900">{task.roomProgress?.length ?? 0}</span>
+                            {' '}/{' '}
+                            <span>{rooms.length > 0 ? rooms.length : '—'}</span>
+                            {' '}rooms checked in list
+                            {hotel && hotel.totalRooms > 0 && (
+                              <span className="text-gray-500"> · hotel total {hotel.totalRooms}</span>
+                            )}
+                          </p>
+                          {task.roomsDoneNotes && (
+                            <p className="text-gray-600 italic truncate" title={task.roomsDoneNotes}>
+                              Notes: {task.roomsDoneNotes}
+                            </p>
+                          )}
+                        </div>
+                      )}
                       
                       {task.description && (
                         <p className="text-gray-800 mb-2">{task.description}</p>
@@ -496,15 +695,37 @@ export function PreventiveSchedule() {
                     
                     <div className="flex sm:flex-col gap-2">
                       {task.status !== 'completed' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleComplete(task)}
-                          className="text-green-600"
-                        >
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Complete
-                        </Button>
+                        isHotelWideTask(task) ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openRoomChecklist(task)}
+                            >
+                              <ClipboardList className="w-4 h-4 mr-1" />
+                              Room checklist
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => completePreventiveRound(task)}
+                              className="text-green-600 border-green-200"
+                            >
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Complete round
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleComplete(task)}
+                            className="text-green-600"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Complete
+                          </Button>
+                        )
                       )}
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => handleEdit(task)}>

@@ -1,7 +1,7 @@
 // Hotel Maintenance Pro - Supabase API (row mapping and fetch/mutate)
 
 import { supabase } from '@/lib/supabase';
-import type { Damage, Room, Hotel, User, PreventiveMaintenance } from '@/types';
+import type { Damage, Room, Hotel, User, PreventiveMaintenance, RepairWorkItem, RepairImage, PreventiveRoomProgressEntry } from '@/types';
 
 function rowToHotel(r: Record<string, unknown>): Hotel {
   return {
@@ -42,6 +42,50 @@ function normalizeStatus(s: unknown): Damage['status'] {
   return 'pending';
 }
 
+function normalizeRepairImages(raw: unknown): RepairImage[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as unknown[]).map((img) => {
+    if (typeof img === 'string') return { type: 'before' as const, url: img, uploadedAt: new Date().toISOString() };
+    const o = img as Record<string, unknown>;
+    return {
+      type: (o.type === 'after' ? 'after' : 'before') as 'before' | 'after',
+      url: (o.url as string) ?? '',
+      uploadedAt: (o.uploadedAt as string) ?? new Date().toISOString()
+    };
+  });
+}
+
+function parseWorkItemsFromRow(raw: unknown): RepairWorkItem[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const items: RepairWorkItem[] = [];
+  for (const entry of raw) {
+    const o = entry as Record<string, unknown>;
+    const id = (o.id as string) || `wi-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const cat = o.category as Damage['category'];
+    if (!id || !cat) continue;
+    items.push({
+      id,
+      category: cat,
+      description: (o.description as string) ?? '',
+      status: normalizeStatus(o.status),
+      images: normalizeRepairImages(o.images),
+      cost: o.cost != null ? Number(o.cost) : undefined,
+      notes: (o.notes as string) || undefined,
+      completedDate: (o.completedDate as string) || (o.completed_date as string) || undefined,
+    });
+  }
+  return items.length > 0 ? items : undefined;
+}
+
+/** List views: keep metadata, drop heavy image payloads nested in work items */
+export function stripWorkItemImagesForList(d: Damage): Damage {
+  if (!d.workItems?.length) return d;
+  return {
+    ...d,
+    workItems: d.workItems.map((wi) => ({ ...wi, images: [] })),
+  };
+}
+
 function rowToDamage(r: Record<string, unknown>): Damage {
   return {
     id: r.id as string,
@@ -59,19 +103,10 @@ function rowToDamage(r: Record<string, unknown>): Damage {
     notes: (r.notes as string) ?? '',
     reportedBy: r.reported_by as string,
     assignedTo: (r.assigned_to as string) || undefined,
-    images: Array.isArray(r.images)
-      ? (r.images as unknown[]).map((img) => {
-          if (typeof img === 'string') return { type: 'before' as const, url: img, uploadedAt: new Date().toISOString() };
-          const o = img as Record<string, unknown>;
-          return {
-            type: (o.type === 'after' ? 'after' : 'before') as 'before' | 'after',
-            url: (o.url as string) ?? '',
-            uploadedAt: (o.uploadedAt as string) ?? new Date().toISOString()
-          };
-        })
-      : [],
+    images: Array.isArray(r.images) ? normalizeRepairImages(r.images) : [],
     lastEditedAt: (r.updated_at as string) || (r.last_edited_at as string) || undefined,
     hoursSpent: r.hours_spent != null ? Number(r.hours_spent) : undefined,
+    workItems: parseWorkItemsFromRow(r.work_items),
   };
 }
 
@@ -85,7 +120,20 @@ function rowToRoom(r: Record<string, unknown>): Room {
   };
 }
 
+function parseRoomProgress(raw: unknown): PreventiveRoomProgressEntry[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: PreventiveRoomProgressEntry[] = [];
+  for (const e of raw) {
+    const o = e as Record<string, unknown>;
+    const roomNumber = (o.roomNumber as string) ?? (o.room_number as string);
+    const doneAt = (o.doneAt as string) ?? (o.done_at as string);
+    if (roomNumber && doneAt) out.push({ roomNumber, doneAt });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
 function rowToPreventive(r: Record<string, unknown>): PreventiveMaintenance {
+  const notes = (r.rooms_done_notes as string) ?? '';
   return {
     id: r.id as string,
     hotelId: r.hotel_id as string,
@@ -98,16 +146,18 @@ function rowToPreventive(r: Record<string, unknown>): PreventiveMaintenance {
     lastCompletedDate: (r.last_completed_date as string) || undefined,
     assignedTo: (r.assigned_to as string) || undefined,
     status: r.status as PreventiveMaintenance['status'],
+    roomProgress: parseRoomProgress(r.room_progress),
+    roomsDoneNotes: notes || undefined,
   };
 }
 
 const HOTELS_SELECT = 'id, name, address, total_rooms, color, image';
 const PROFILES_SELECT = 'id, name, role, phone, email, color, avatar, can_delete';
-const DAMAGES_SELECT = 'id, hotel_id, room_number, category, description, status, priority, reported_date, completed_date, cost, materials, notes, reported_by, assigned_to, images, updated_at';
+const DAMAGES_SELECT = 'id, hotel_id, room_number, category, description, status, priority, reported_date, completed_date, cost, materials, notes, reported_by, assigned_to, images, updated_at, work_items';
 /** List fetch omits images to avoid timeout (heavy JSONB). Use fetchDamageById for detail. */
-const DAMAGES_SELECT_LIST = 'id, hotel_id, room_number, category, description, status, priority, reported_date, completed_date, cost, materials, notes, reported_by, assigned_to, updated_at';
+const DAMAGES_SELECT_LIST = 'id, hotel_id, room_number, category, description, status, priority, reported_date, completed_date, cost, materials, notes, reported_by, assigned_to, updated_at, work_items';
 const ROOMS_SELECT = 'hotel_id, number, floor, type, status';
-const PREVENTIVE_SELECT = 'id, hotel_id, room_number, category, title, description, frequency, next_due_date, last_completed_date, assigned_to, status';
+const PREVENTIVE_SELECT = 'id, hotel_id, room_number, category, title, description, frequency, next_due_date, last_completed_date, assigned_to, status, room_progress, rooms_done_notes';
 
 export async function fetchHotels(): Promise<Hotel[]> {
   if (!supabase) return [];
@@ -135,7 +185,7 @@ export async function fetchDamages(hotelId: string): Promise<Damage[]> {
     .order('reported_date', { ascending: false })
     .limit(DAMAGES_FETCH_LIMIT);
   if (error) throw error;
-  return (data ?? []).map(rowToDamage);
+  return (data ?? []).map((row) => stripWorkItemImagesForList(rowToDamage(row as Record<string, unknown>)));
 }
 
 export async function fetchDamageById(id: string): Promise<Damage | null> {
@@ -204,6 +254,7 @@ function damageToRow(d: Partial<Damage>): Record<string, unknown> {
   if (d.assignedTo != null) row.assigned_to = d.assignedTo;
   if (d.images != null) row.images = d.images;
   if (d.lastEditedAt != null) row.updated_at = d.lastEditedAt;
+  if (d.workItems !== undefined) row.work_items = d.workItems;
   return row;
 }
 
@@ -265,6 +316,8 @@ function preventiveToRow(p: Partial<PreventiveMaintenance>): Record<string, unkn
   if (p.lastCompletedDate != null) row.last_completed_date = p.lastCompletedDate;
   if (p.assignedTo != null) row.assigned_to = p.assignedTo;
   if (p.status != null) row.status = p.status;
+  if (p.roomProgress !== undefined) row.room_progress = p.roomProgress;
+  if (p.roomsDoneNotes !== undefined) row.rooms_done_notes = p.roomsDoneNotes;
   return row;
 }
 
